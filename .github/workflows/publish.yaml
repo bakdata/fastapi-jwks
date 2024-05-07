@@ -17,7 +17,7 @@ on:
 jobs:
   release:
     name: release
-    uses: bakdata/ci-templates/.github/workflows/python-poetry-release.yaml@1.45.2
+    uses: bakdata/ci-templates/.github/workflows/python-poetry-release.yaml@1.46.0
     with:
       release-type: ${{ github.event.inputs.release-type }}
       publish-to-test: true
