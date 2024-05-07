@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "package-name" # TODO: set name and change {package_name} below
+name = "fastapi-jwks" # TODO: set name and change {package_name} below
 version = "0.0.0"
 description = ""
 license = "MIT"
@@ -14,9 +14,14 @@ readme = "README.md" # Could also do ["path/to/README0.md", "path/to/README1.md"
 
 # [tool.poetry.scripts]
 # start = "main:start"
-
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.12"
+pydantic = "^2.7.1"
+fastapi = "^0.111.0"
+pyjwt = "^2.8.0"
+loguru = "^0.7.2"
+cachetools = "^5.3.3"
+types-cachetools = "^5.3.0.7"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.7.0"
