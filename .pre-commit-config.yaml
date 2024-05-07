@@ -1,0 +1,47 @@
+---
+repos:
+  - repo: local
+    hooks:
+      - id: poetry-install
+        name: poetry-install
+        description: install Poetry dependencies from the lock file
+        entry: poetry install
+        language: python
+        pass_filenames: false
+        stages: [post-checkout, post-merge]
+        always_run: true
+      - id: poetry-check
+        name: poetry-check
+        description: validate Poetry config and dependency lock file
+        entry: poetry check
+        language: python
+        pass_filenames: false
+        files: ^(.*/)?(pyproject\.toml|poetry\.lock)$
+      - id: ruff-lint
+        name: ruff-lint
+        entry: ruff check
+        args:
+          [
+            --force-exclude,
+            --config,
+            pyproject.toml,
+            --fix,
+            --show-fixes,
+            --exit-non-zero-on-fix,
+          ]
+        language: system
+        types_or: [python]
+        require_serial: true # run once for all files
+      - id: ruff-format
+        name: ruff-format
+        entry: ruff format
+        args: [--force-exclude, --config, pyproject.toml]
+        language: system
+        types_or: [python]
+        require_serial: true # run once for all files
+      - id: pyright
+        name: pyright
+        entry: pyright
+        language: system
+        types: [python]
+        require_serial: true # run once for all files

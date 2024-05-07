@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-22.04
+    env:
+      working-directory: ./
+      poetry-version: "1.8.2"
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ env.working-directory }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Poetry
+        uses: bakdata/ci-templates/actions/python-setup-poetry@1.45.2
+        with:
+          python-version: ${{ matrix.python-version }}
+          poetry-version: ${{ env.poetry-version }}
+          working-directory: ${{ env.working-directory }}
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Check Poetry config and lockfile
+        run: poetry run pre-commit run poetry-check --all-files
+
+      - name: Lint (ruff)
+        run: |
+          if [[ "$RUNNER_OS" == "Linux" && "${{ matrix.python-version }}" == "3.10" ]]
+          then
+            echo "::add-matcher::.github/ruff-matcher.json"
+            poetry run ruff check . --config pyproject.toml --output-format text --no-fix
+          else
+            poetry run pre-commit run ruff-lint --all-files --show-diff-on-failure
+          fi;
+
+      - name: Formatting (ruff)
+        run: poetry run pre-commit run ruff-format --all-files --show-diff-on-failure
+
+      - name: Typing (pyright)
+        run: poetry run pre-commit run pyright --all-files
+
+      - name: Test
+        run: poetry run pytest tests
