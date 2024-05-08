@@ -1,11 +1,11 @@
 from datetime import timedelta
-from typing import Iterator, Any
+from typing import Any
 
 from pydantic import BaseModel
 
 
 class JWTDecodeConfig(BaseModel):
-    audience: Iterator[str] | None = None
+    audience: list[str] | None = None
     issuer: str | None = None
     leeway: float | timedelta | None = None
     options: dict[str, Any] | None = None

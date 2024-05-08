@@ -1,13 +1,10 @@
-from functools import cached_property
-from typing import Any, TypeVar, Generic
-
-from cachetools import cached, Cache, TTLCache
-from loguru import logger
+from typing import Any, Generic, TypeVar
 
 import jwt
-from jwt import algorithms
 import requests
+from cachetools import TTLCache, cached
 from fastapi import HTTPException
+from loguru import logger
 from pydantic import BaseModel
 from starlette.middleware.base import (
     BaseHTTPMiddleware,
@@ -17,7 +14,8 @@ from starlette.middleware.base import (
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp
-from jwk.middlewares.models.types import JWTDecodeConfig, JWKSConfig
+
+from jwk.middlewares.models.types import JWKSConfig, JWTDecodeConfig
 
 DataT = TypeVar("DataT", bound=BaseModel)
 
@@ -27,8 +25,8 @@ class JWKSValidator(Generic[DataT]):
         self.decode_config = decode_config
         self.jwks_config = jwks_config
 
-    @cached(cache=TTLCache(ttl=600))
-    def __jwks_data(self) -> dict[str, Any]:
+    @cached(cache=TTLCache(ttl=600, maxsize=100))
+    def jwks_data(self) -> dict[str, Any]:
         try:
             logger.debug("Fetching JWKS from %s", self.jwks_config.url)
             jwks_response = requests.get(self.jwks_config.url)
@@ -54,12 +52,12 @@ class JWKSValidator(Generic[DataT]):
         try:
             header = jwt.get_unverified_header(token)
             kid = header["kid"]
-            jwks_data = self.__jwks_data()
+            jwks_data = self.jwks_data()
             if header["alg"] not in self.__extract_algorithms(jwks_data):
                 raise HTTPException(status_code=401, detail="Invalid token")
             for key in jwks_data["keys"]:
                 if key["kid"] == kid:
-                    public_key = algorithms.get_default_algorithms()[
+                    public_key = jwt.algorithms.get_default_algorithms()[
                         header["alg"]
                     ].from_jwk(key)
                     break
@@ -68,15 +66,15 @@ class JWKSValidator(Generic[DataT]):
             return self.__orig_class__.__args__[0].model_validate(
                 jwt.decode(
                     token,
-                    public_key,
+                    key=public_key,
                     **self.decode_config.model_dump(),
                     algorithms=[header["alg"]],
                 )
             )
         except jwt.ExpiredSignatureError:
-            raise HTTPException(status_code=401, detail="Token has expired")
+            raise HTTPException(status_code=401, detail="Token has expired") from None
         except jwt.InvalidTokenError:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(status_code=401, detail="Invalid token") from None
 
 
 class JWKAuthMiddleware(BaseHTTPMiddleware):
