@@ -64,7 +64,7 @@ class JWKSValidator(Generic[DataT]):
                     break
             if public_key is None:
                 raise HTTPException(status_code=401, detail="Invalid token")
-            return self.__orig_class__.__args__[0].model_validate( # type: ignore
+            return self.__orig_class__.__args__[0].model_validate(  # type: ignore
                 jwt.decode(
                     token,
                     key=public_key,
