@@ -13,4 +13,4 @@ class JWTDecodeConfig(BaseModel):
 
 
 class JWKSConfig(BaseModel):
-    url: str | None = None
+    url: str

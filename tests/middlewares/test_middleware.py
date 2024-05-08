@@ -47,8 +47,6 @@ def app(jwks_fake_data):
         "jwk.middlewares.jwk_auth.JWKSValidator.jwks_data", return_value=jwks_fake_data
     )
     mocked_jwt.start()
-
-    mocked_jwt.return_value = jwks_fake_data
     test_app.add_middleware(JWKAuthMiddleware, jwks_validator=jwks_verifier)
 
     return test_app

@@ -4,6 +4,7 @@ import jwt
 import requests
 from cachetools import TTLCache, cached
 from fastapi import HTTPException
+from jwt import algorithms
 from loguru import logger
 from pydantic import BaseModel
 from starlette.middleware.base import (
@@ -57,13 +58,13 @@ class JWKSValidator(Generic[DataT]):
                 raise HTTPException(status_code=401, detail="Invalid token")
             for key in jwks_data["keys"]:
                 if key["kid"] == kid:
-                    public_key = jwt.algorithms.get_default_algorithms()[
+                    public_key = algorithms.get_default_algorithms()[
                         header["alg"]
                     ].from_jwk(key)
                     break
             if public_key is None:
                 raise HTTPException(status_code=401, detail="Invalid token")
-            return self.__orig_class__.__args__[0].model_validate(
+            return self.__orig_class__.__args__[0].model_validate( # type: ignore
                 jwt.decode(
                     token,
                     key=public_key,
