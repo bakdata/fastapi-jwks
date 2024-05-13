@@ -57,6 +57,7 @@ class JWKSValidator(Generic[DataT]):
             if public_key is None:
                 raise HTTPException(status_code=401, detail="Invalid token")
             return self.__orig_class__.__args__[0].model_validate(  # type: ignore
+                # This line gets the generic value in runtime to transform it to the correct pydantic model
                 jwt.decode(
                     token,
                     key=public_key,

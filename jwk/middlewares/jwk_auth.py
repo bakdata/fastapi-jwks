@@ -29,7 +29,7 @@ class JWKAuthMiddleware(BaseHTTPMiddleware):
         )
         if not bearer_token or not bearer_token.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Invalid token")
-        token = bearer_token[7:]
+        token = bearer_token.removeprefix("Bearer ")
         request.state.payload = self.jwk_validator.validate_token(token)
         response = await call_next(request)
         return response
