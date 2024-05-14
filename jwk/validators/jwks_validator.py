@@ -41,6 +41,10 @@ class JWKSValidator(Generic[DataT]):
         return [key["alg"] for key in keys]
 
     def validate_token(self, token: str) -> DataT:
+        if getattr(self, "__orig_class__", None) is None:  # type: ignore
+            raise ValueError(
+                "Validator needs a model as generic value to decode payload"
+            )
         public_key = None
         try:
             header = jwt.get_unverified_header(token)

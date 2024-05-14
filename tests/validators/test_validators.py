@@ -95,3 +95,19 @@ def test_extra_config(
         options={"extra_key": "extra_value"},
         verify=False,
     )
+
+
+@patch(
+    "jwk.validators.jwks_validator.JWKSValidator.jwks_data",
+    return_value=jwks_fake_data(),
+)
+def test_generic_mandatory(data_mock, signed_token):
+    validator = JWKSValidator(
+        decode_config=JWTDecodeConfig(),
+        jwks_config=JWKSConfig(url="https://my-fake-jwks-endpoint/my-endpoint"),
+    )
+
+    with pytest.raises(
+        ValueError, match="Validator needs a model as generic value to decode payload"
+    ):
+        validator.validate_token(signed_token)
