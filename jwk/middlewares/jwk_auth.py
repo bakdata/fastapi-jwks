@@ -19,7 +19,7 @@ class JWKAuthMiddleware(BaseHTTPMiddleware):
         dispatch: DispatchFunction | None = None,
     ) -> None:
         super().__init__(app, dispatch)
-        self.jwk_validator = jwks_validator
+        self.jwks_validator = jwks_validator
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
@@ -30,6 +30,6 @@ class JWKAuthMiddleware(BaseHTTPMiddleware):
         if not bearer_token or not bearer_token.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Invalid token")
         token = bearer_token.removeprefix("Bearer ")
-        request.state.payload = self.jwk_validator.validate_token(token)
+        request.state.payload = self.jwks_validator.validate_token(token)
         response = await call_next(request)
         return response
