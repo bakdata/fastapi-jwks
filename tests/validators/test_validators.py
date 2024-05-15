@@ -5,8 +5,8 @@ import jwt
 import pytest
 from pydantic import BaseModel
 
-from jwk.models.types import JWKSConfig, JWTDecodeConfig
-from jwk.validators import JWKSValidator
+from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig
+from fastapi_jwks.validators import JWKSValidator
 
 
 class FakeToken(BaseModel):
@@ -42,7 +42,7 @@ def signed_token():
 
 
 @patch(
-    "jwk.validators.jwks_validator.JWKSValidator.jwks_data",
+    "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
     return_value=jwks_fake_data(),
 )
 def test_simple_validate(data_mock, signed_token):
@@ -58,7 +58,7 @@ def test_simple_validate(data_mock, signed_token):
 
 @patch("jwt.decode")
 @patch(
-    "jwk.validators.jwks_validator.JWKSValidator.jwks_data",
+    "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
     return_value=jwks_fake_data(),
 )
 def test_extra_config(
@@ -98,7 +98,7 @@ def test_extra_config(
 
 
 @patch(
-    "jwk.validators.jwks_validator.JWKSValidator.jwks_data",
+    "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
     return_value=jwks_fake_data(),
 )
 def test_generic_mandatory(data_mock, signed_token):

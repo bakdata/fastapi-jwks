@@ -8,7 +8,7 @@ from jwt import algorithms
 from loguru import logger
 from pydantic import BaseModel
 
-from jwk.models.types import JWKSConfig, JWTDecodeConfig
+from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig
 
 DataT = TypeVar("DataT", bound=BaseModel)
 

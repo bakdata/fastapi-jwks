@@ -8,7 +8,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.types import ASGIApp
 
-from jwk.validators import JWKSValidator
+from fastapi_jwks.validators import JWKSValidator
 
 
 class JWKAuthMiddleware(BaseHTTPMiddleware):

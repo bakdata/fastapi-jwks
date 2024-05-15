@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "fastapi-jwks"
+name = "fastapi_jwks"
 version = "0.0.0"
 description = ""
 license = "MIT"
@@ -65,7 +65,7 @@ ignore = [
 
 [tool.pytest.ini_options]
 testpaths = "tests"
-addopts = "--cov={fastapi-jwks} --cov-report term-missing"
+addopts = "--cov={fastapi_jwks} --cov-report term-missing"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

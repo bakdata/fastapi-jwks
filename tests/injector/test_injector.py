@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import BaseModel
 
-from jwk.injector.payload_injector import JWTTokenInjector
+from fastapi_jwks.injector import JWTTokenInjector
 
 
 class FakeUser(BaseModel):

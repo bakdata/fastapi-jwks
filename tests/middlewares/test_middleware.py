@@ -8,9 +8,9 @@ from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.testclient import TestClient
 
-from jwk.middlewares.jwk_auth import JWKAuthMiddleware
-from jwk.models.types import JWKSConfig, JWTDecodeConfig
-from jwk.validators import JWKSValidator
+from fastapi_jwks.middlewares.jwk_auth import JWKAuthMiddleware
+from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig
+from fastapi_jwks.validators import JWKSValidator
 
 
 class FakeToken(BaseModel):
@@ -45,7 +45,7 @@ def app(jwks_fake_data):
         jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
     )
     mocked_jwt = patch(
-        "jwk.validators.jwks_validator.JWKSValidator.jwks_data",
+        "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
         return_value=jwks_fake_data,
     )
     mocked_jwt.start()
