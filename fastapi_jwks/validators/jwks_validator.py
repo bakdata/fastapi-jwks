@@ -46,7 +46,6 @@ class JWKSValidator(Generic[DataT]):
         return True
 
     def validate_token(self, token: str) -> DataT:
-
         if not self.__is_generic_passed:
             raise ValueError(
                 "Validator needs a model as generic value to decode payload"
