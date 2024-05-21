@@ -1,3 +1,4 @@
+from functools import cached_property
 from typing import Any, Generic, TypeVar
 
 import jwt
@@ -18,18 +19,16 @@ class JWKSValidator(Generic[DataT]):
         self.decode_config = decode_config
         self.jwks_config = jwks_config
 
-    @cached(cache=TTLCache(ttl=600, maxsize=100))
+    @cached(cache=TTLCache(ttl=600, maxsize=1))
     def jwks_data(self) -> dict[str, Any]:
         try:
             logger.debug("Fetching JWKS from %s", self.jwks_config.url)
             jwks_response = requests.get(self.jwks_config.url)
             jwks_response.raise_for_status()
         except requests.RequestException as e:
-            logger.error("Invalid JWKS URI")
             raise HTTPException(status_code=503, detail="Invalid JWKS URI") from e
         jwks: dict[str, Any] = jwks_response.json()
         if "keys" not in jwks:
-            logger.error("Invalid JWKS")
             raise HTTPException(status_code=503, detail="Invalid JWKS")
         return jwks
 
@@ -40,11 +39,19 @@ class JWKSValidator(Generic[DataT]):
         keys = jwks_response["keys"]
         return [key["alg"] for key in keys]
 
-    def validate_token(self, token: str) -> DataT:
+    @cached_property
+    def __is_generic_passed(self):
         if getattr(self, "__orig_class__", None) is None:  # type: ignore
+            return False
+        return True
+
+    def validate_token(self, token: str) -> DataT:
+
+        if not self.__is_generic_passed:
             raise ValueError(
                 "Validator needs a model as generic value to decode payload"
             )
+
         public_key = None
         try:
             header = jwt.get_unverified_header(token)

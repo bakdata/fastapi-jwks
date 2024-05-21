@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.testclient import TestClient
 
-from fastapi_jwks.middlewares.jwk_auth import JWKAuthMiddleware
+from fastapi_jwks.middlewares.jwk_auth import JWKSAuthMiddleware
 from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig
 from fastapi_jwks.validators import JWKSValidator
 
@@ -49,7 +49,7 @@ def app(jwks_fake_data):
         return_value=jwks_fake_data,
     )
     mocked_jwt.start()
-    test_app.add_middleware(JWKAuthMiddleware, jwks_validator=jwks_verifier)
+    test_app.add_middleware(JWKSAuthMiddleware, jwks_validator=jwks_verifier)
 
     return test_app
 

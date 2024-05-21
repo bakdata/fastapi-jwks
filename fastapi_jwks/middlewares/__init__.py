@@ -1,3 +1,3 @@
-from .jwk_auth import JWKAuthMiddleware
+from .jwk_auth import JWKSAuthMiddleware
 
-__all__ = ["JWKAuthMiddleware"]
+__all__ = ["JWKSAuthMiddleware"]

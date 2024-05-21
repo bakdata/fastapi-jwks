@@ -11,7 +11,7 @@ from starlette.types import ASGIApp
 from fastapi_jwks.validators import JWKSValidator
 
 
-class JWKAuthMiddleware(BaseHTTPMiddleware):
+class JWKSAuthMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app: ASGIApp,
