@@ -6,9 +6,9 @@ on:
 
 jobs:
   publish:
-    uses: bakdata/ci-templates/.github/workflows/python-poetry-publish-pypi.yaml@1.40.4
+    uses: bakdata/ci-templates/.github/workflows/python-poetry-publish-pypi.yaml@1.45.2
     with:
       publish-to-test: false
-      poetry-version: "1.7.1"
+      poetry-version: "1.8.1"
     secrets:
       pypi-token: "${{ secrets.PYPI_TOKEN }}"

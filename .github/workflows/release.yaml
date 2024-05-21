@@ -15,11 +15,11 @@ on:
 
 jobs:
   create-github-release-push-tag:
-    uses: bakdata/ci-templates/.github/workflows/python-poetry-release.yaml@1.40.4
+    uses: bakdata/ci-templates/.github/workflows/python-poetry-release.yaml@1.45.2
     name: Release
     with:
       release-type: ${{ inputs.release-type }}
-      poetry-version: "1.7.1"
+      poetry-version: "1.8.2"
       changelog: true
     secrets:
       github-username: "${{ secrets.GH_USERNAME }}"
