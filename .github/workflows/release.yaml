@@ -14,12 +14,13 @@ on:
           - major
 
 jobs:
-  create-github-release-push-tag:
-    uses: bakdata/ci-templates/.github/workflows/python-poetry-release.yaml@1.45.2
+  release:
+    uses: bakdata/ci-templates/.github/workflows/python-poetry-release.yaml@1.46.3
     name: Release
     with:
       release-type: ${{ inputs.release-type }}
       poetry-version: "1.8.2"
+      python-version: "3.12"
       changelog: true
     secrets:
       github-username: "${{ secrets.GH_USERNAME }}"
