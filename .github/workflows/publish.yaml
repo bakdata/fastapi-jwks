@@ -1,38 +1,15 @@
-name: Publish
-# Template adapted from https://github.com/bakdata/ci-templates/tree/main/.github/workflows#python-poetry-release
-
+name: Publish to PyPI
 on:
-  workflow_dispatch:
-    inputs:
-      release-type:
-        description: "Scope of the release; see https://python-poetry.org/docs/cli/#version"
-        type: choice
-        required: true
-        default: patch
-        options:
-          - patch
-          - minor
-          - major
+  push:
+    tags:
+      - '*'
 
 jobs:
-  release:
-    name: release
-    uses: bakdata/ci-templates/.github/workflows/python-poetry-release.yaml@1.45.2
+  publish:
+    uses: bakdata/ci-templates/.github/workflows/python-poetry-publish-pypi.yaml@1.46.3
     with:
-      release-type: ${{ github.event.inputs.release-type }}
-      publish-to-test: true
-      python-version: "3.12"
+      publish-to-test: false
       poetry-version: "1.8.2"
-      # working-directory: "./"
+      python-version: "3.12"
     secrets:
-      github-email: ${{ secrets.GH_EMAIL }}
-      github-username: ${{ secrets.GH_USERNAME }}
-      github-token: ${{ secrets.GH_TOKEN }}
-      pypi-token: ${{ secrets.TEST_PYPI_TOKEN }}
-
-  print-version:
-    name: print-version
-    runs-on: ubuntu-22.04
-    needs: release
-    steps:
-      - run: echo "Bumped Version from ${{ needs.release.outputs.old-tag }} to ${{ needs.release.outputs.release-tag }}"
+      pypi-token: "${{ secrets.PYPI_TOKEN }}"

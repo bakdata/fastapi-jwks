@@ -1,0 +1,28 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-type:
+        description: "Scope of the release; see https://python-poetry.org/docs/cli/#version"
+        type: choice
+        required: true
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  release:
+    uses: bakdata/ci-templates/.github/workflows/python-poetry-release.yaml@1.46.3
+    name: Release
+    with:
+      release-type: ${{ inputs.release-type }}
+      poetry-version: "1.8.2"
+      python-version: "3.12"
+      changelog: true
+    secrets:
+      github-username: "${{ secrets.GH_USERNAME }}"
+      github-email: "${{ secrets.GH_EMAIL }}"
+      github-token: "${{ secrets.GH_TOKEN }}"
