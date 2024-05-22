@@ -26,7 +26,7 @@ cryptography = "^42.0.7"
 requests = "^2.31.0"
 
 [tool.poetry.group.dev.dependencies]
-pre-commit = "^3.7.0"
+pre-commit = "^3.7.1"
 ruff = "^0.3.4"
 pyright = "^1.1.355"
 pytest = "^8.1.1"
