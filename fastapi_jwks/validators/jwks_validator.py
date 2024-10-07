@@ -2,7 +2,7 @@ from functools import cached_property
 from typing import Any, Generic, TypeVar
 
 import jwt
-import requests
+import httpx
 from cachetools import TTLCache, cached
 from fastapi import HTTPException
 from jwt import algorithms
@@ -23,9 +23,13 @@ class JWKSValidator(Generic[DataT]):
     def jwks_data(self) -> dict[str, Any]:
         try:
             logger.debug("Fetching JWKS from %s", self.jwks_config.url)
-            jwks_response = requests.get(self.jwks_config.url)
-            jwks_response.raise_for_status()
-        except requests.RequestException as e:
+            client_kwargs = {}
+            if self.jwks_config.ca_cert_path:
+                client_kwargs["verify"] = self.jwks_config.ca_cert_path
+            with httpx.Client(**client_kwargs) as client:
+                jwks_response = client.get(self.jwks_config.url)
+                jwks_response.raise_for_status()
+        except httpx.RequestError as e:
             raise HTTPException(status_code=503, detail="Invalid JWKS URI") from e
         jwks: dict[str, Any] = jwks_response.json()
         if "keys" not in jwks:

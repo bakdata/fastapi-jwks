@@ -1,9 +1,11 @@
 import base64
 from unittest.mock import MagicMock, patch
+import tempfile
 
 import jwt
 import pytest
 from pydantic import BaseModel
+from pydantic_core import Url
 
 from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig
 from fastapi_jwks.validators import JWKSValidator
@@ -111,3 +113,32 @@ def test_generic_mandatory(data_mock, signed_token):
         ValueError, match="Validator needs a model as generic value to decode payload"
     ):
         validator.validate_token(signed_token)
+
+
+def test_custom_ca_cert():
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.pem') as ca_cert_file:
+        ca_cert_file.write("-----BEGIN CERTIFICATE-----\nMIID...\n-----END CERTIFICATE-----\n")
+        ca_cert_file.flush()
+
+        jwks_verifier = JWKSValidator[FakeToken](
+            decode_config=JWTDecodeConfig(),
+            jwks_config=JWKSConfig(
+                url="https://my-fake-jwks-endpoint/my-endpoint",
+                ca_cert_path=ca_cert_file.name
+            ),
+        )
+
+        with patch('httpx.Client') as mock_client:
+            mock_response = MagicMock()
+            mock_response.json.return_value = jwks_fake_data()
+            mock_response.raise_for_status.return_value = None
+            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+
+            jwks_data = jwks_verifier.jwks_data()
+
+            assert jwks_data == jwks_fake_data()
+            mock_client.assert_called_with(verify=ca_cert_file.name)
+            mock_client.return_value.__enter__.return_value.get.assert_called_with(
+                Url("https://my-fake-jwks-endpoint/my-endpoint")
+            )
+

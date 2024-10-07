@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "fastapi_jwks"
+name = "fastapi-jwks"
 version = "0.0.2"
 description = ""
 license = "MIT"
