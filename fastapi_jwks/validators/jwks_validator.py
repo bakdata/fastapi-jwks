@@ -1,8 +1,8 @@
 from functools import cached_property
 from typing import Any, Generic, TypeVar
 
-import jwt
 import httpx
+import jwt
 from cachetools import TTLCache, cached
 from fastapi import HTTPException
 from jwt import algorithms

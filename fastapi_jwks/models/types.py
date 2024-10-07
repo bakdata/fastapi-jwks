@@ -1,7 +1,7 @@
 from datetime import timedelta
-from typing import Any, Optional
+from typing import Any
 
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 
 
 class JWTDecodeConfig(BaseModel):
@@ -13,5 +13,5 @@ class JWTDecodeConfig(BaseModel):
 
 
 class JWKSConfig(BaseModel):
-    url: HttpUrl
-    ca_cert_path: Optional[str] = None
+    url: str
+    ca_cert_path: str | None = None

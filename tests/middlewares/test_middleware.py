@@ -1,12 +1,11 @@
 import base64
-from unittest.mock import patch, MagicMock
 import tempfile
+from unittest.mock import MagicMock, patch
 
 import jwt
 import pytest
 from fastapi import FastAPI
 from pydantic import BaseModel
-from pydantic_core import Url
 from starlette.requests import Request
 from starlette.testclient import TestClient
 
@@ -54,6 +53,7 @@ def app(jwks_fake_data):
     test_app.add_middleware(JWKSAuthMiddleware, jwks_validator=jwks_verifier)
     yield test_app
     mocked_jwt.stop()
+
 
 @pytest.fixture()
 def client(app: FastAPI) -> TestClient:
@@ -156,23 +156,27 @@ def test_custom_ca_cert(jwks_fake_data):
     def get_test_route(request: Request):
         return request.state.payload
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.pem') as ca_cert_file:
-        ca_cert_file.write("-----BEGIN CERTIFICATE-----\nMIID...\n-----END CERTIFICATE-----\n")
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".pem") as ca_cert_file:
+        ca_cert_file.write(
+            "-----BEGIN CERTIFICATE-----\nMIID...\n-----END CERTIFICATE-----\n"
+        )
         ca_cert_file.flush()
 
         jwks_verifier = JWKSValidator[FakeToken](
             decode_config=JWTDecodeConfig(),
             jwks_config=JWKSConfig(
                 url="http://my-fake-jwks-url/my-fake-endpoint",
-                ca_cert_path=ca_cert_file.name
+                ca_cert_path=ca_cert_file.name,
             ),
         )
 
-        with patch('httpx.Client') as mock_client:
+        with patch("httpx.Client") as mock_client:
             mock_response = MagicMock()
             mock_response.json.return_value = jwks_fake_data
             mock_response.raise_for_status.return_value = None
-            mock_client.return_value.__enter__.return_value.get.return_value = mock_response
+            mock_client.return_value.__enter__.return_value.get.return_value = (
+                mock_response
+            )
 
             test_app.add_middleware(JWKSAuthMiddleware, jwks_validator=jwks_verifier)
             client = TestClient(test_app)
@@ -184,7 +188,10 @@ def test_custom_ca_cert(jwks_fake_data):
 
             claim = {"user": "my-custom-ca-user"}
             signed_token = jwt.encode(
-                claim, base64.urlsafe_b64decode(key), headers={"kid": kid}, algorithm=algo
+                claim,
+                base64.urlsafe_b64decode(key),
+                headers={"kid": kid},
+                algorithm=algo,
             )
 
             response = client.get(
@@ -194,11 +201,9 @@ def test_custom_ca_cert(jwks_fake_data):
 
             assert data["user"] == claim["user"]
             assert response.status_code == 200
-            mock_client.assert_called_once_with(
-                verify=ca_cert_file.name
-            )
+            mock_client.assert_called_once_with(verify=ca_cert_file.name)
             mock_client.return_value.__enter__.return_value.get.assert_called_once_with(
-                Url("http://my-fake-jwks-url/my-fake-endpoint")
+                "http://my-fake-jwks-url/my-fake-endpoint"
             )
 
 
@@ -223,9 +228,7 @@ def test_excluded_path(jwks_fake_data):
     )
     mocked_jwt.start()
     test_app.add_middleware(
-        JWKSAuthMiddleware,
-        jwks_validator=jwks_verifier,
-        exclude_paths=["/public"]
+        JWKSAuthMiddleware, jwks_validator=jwks_verifier, exclude_paths=["/public"]
     )
 
     client = TestClient(test_app)

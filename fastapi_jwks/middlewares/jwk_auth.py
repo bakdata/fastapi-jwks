@@ -1,5 +1,3 @@
-from typing import Optional, List
-
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
@@ -14,7 +12,7 @@ class JWKSAuthMiddleware(BaseHTTPMiddleware):
         jwks_validator: JWKSValidator,
         auth_header: str = "Authorization",
         auth_scheme: str = "Bearer",
-        exclude_paths: List[str] = [],
+        exclude_paths: list[str] | None = None,
     ):
         super().__init__(app)
         self.jwks_validator = jwks_validator
@@ -23,10 +21,10 @@ class JWKSAuthMiddleware(BaseHTTPMiddleware):
         self.exclude_paths = exclude_paths
 
     async def dispatch(self, request: Request, call_next) -> Response:
-        if request.url.path in self.exclude_paths:
+        if self.exclude_paths and request.url.path in self.exclude_paths:
             return await call_next(request)
 
-        authorization: Optional[str] = request.headers.get(self.auth_header)
+        authorization: str | None = request.headers.get(self.auth_header)
         if not authorization:
             return JSONResponse(
                 status_code=401,
@@ -38,7 +36,9 @@ class JWKSAuthMiddleware(BaseHTTPMiddleware):
             if scheme.lower() != self.auth_scheme.lower():
                 return JSONResponse(
                     status_code=401,
-                    content={"detail": f"Invalid authentication scheme. Expected {self.auth_scheme}"},
+                    content={
+                        "detail": f"Invalid authentication scheme. Expected {self.auth_scheme}"
+                    },
                 )
         except ValueError:
             return JSONResponse(
