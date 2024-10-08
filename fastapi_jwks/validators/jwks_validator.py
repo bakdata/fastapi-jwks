@@ -18,17 +18,20 @@ class JWKSValidator(Generic[DataT]):
     def __init__(self, decode_config: JWTDecodeConfig, jwks_config: JWKSConfig):
         self.decode_config = decode_config
         self.jwks_config = jwks_config
+        self.client = self._create_client()
+
+    def _create_client(self) -> httpx.Client:
+        client_kwargs = {}
+        if self.jwks_config.ca_cert_path:
+            client_kwargs["verify"] = self.jwks_config.ca_cert_path
+        return httpx.Client(**client_kwargs)
 
     @cached(cache=TTLCache(ttl=600, maxsize=1))
     def jwks_data(self) -> dict[str, Any]:
         try:
             logger.debug("Fetching JWKS from %s", self.jwks_config.url)
-            client_kwargs = {}
-            if self.jwks_config.ca_cert_path:
-                client_kwargs["verify"] = self.jwks_config.ca_cert_path
-            with httpx.Client(**client_kwargs) as client:
-                jwks_response = client.get(self.jwks_config.url)
-                jwks_response.raise_for_status()
+            jwks_response = self.client.get(self.jwks_config.url)
+            jwks_response.raise_for_status()
         except httpx.RequestError as e:
             raise HTTPException(status_code=503, detail="Invalid JWKS URI") from e
         jwks: dict[str, Any] = jwks_response.json()

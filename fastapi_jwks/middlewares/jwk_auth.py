@@ -1,6 +1,7 @@
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+from starlette.types import ASGIApp
 
 from fastapi_jwks.validators import JWKSValidator
 
@@ -8,7 +9,7 @@ from fastapi_jwks.validators import JWKSValidator
 class JWKSAuthMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
-        app,
+        app: ASGIApp,
         jwks_validator: JWKSValidator,
         auth_header: str = "Authorization",
         auth_scheme: str = "Bearer",
