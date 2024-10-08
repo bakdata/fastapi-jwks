@@ -162,19 +162,19 @@ def test_custom_ca_cert(jwks_fake_data):
         )
         ca_cert_file.flush()
 
-        jwks_verifier = JWKSValidator[FakeToken](
-            decode_config=JWTDecodeConfig(),
-            jwks_config=JWKSConfig(
-                url="http://my-fake-jwks-url/my-fake-endpoint",
-                ca_cert_path=ca_cert_file.name,
-            ),
-        )
-
         with patch("httpx.Client") as mock_client:
             mock_response = MagicMock()
             mock_response.json.return_value = jwks_fake_data
             mock_response.raise_for_status.return_value = None
             mock_client.return_value.get.return_value = mock_response
+
+            jwks_verifier = JWKSValidator[FakeToken](
+                decode_config=JWTDecodeConfig(),
+                jwks_config=JWKSConfig(
+                    url="http://my-fake-jwks-url/my-fake-endpoint",
+                    ca_cert_path=ca_cert_file.name,
+                ),
+            )
 
             test_app.add_middleware(JWKSAuthMiddleware, jwks_validator=jwks_verifier)
             client = TestClient(test_app)
