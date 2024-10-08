@@ -133,14 +133,12 @@ def test_custom_ca_cert():
             mock_response = MagicMock()
             mock_response.json.return_value = jwks_fake_data()
             mock_response.raise_for_status.return_value = None
-            mock_client.return_value.__enter__.return_value.get.return_value = (
-                mock_response
-            )
+            mock_client.return_value.get.return_value = mock_response
 
             jwks_data = jwks_verifier.jwks_data()
 
             assert jwks_data == jwks_fake_data()
             mock_client.assert_called_with(verify=ca_cert_file.name)
-            mock_client.return_value.__enter__.return_value.get.assert_called_with(
+            mock_client.return_value.get.assert_called_with(
                 "https://my-fake-jwks-endpoint/my-endpoint"
             )

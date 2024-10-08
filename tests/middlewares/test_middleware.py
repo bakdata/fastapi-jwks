@@ -174,9 +174,7 @@ def test_custom_ca_cert(jwks_fake_data):
             mock_response = MagicMock()
             mock_response.json.return_value = jwks_fake_data
             mock_response.raise_for_status.return_value = None
-            mock_client.return_value.__enter__.return_value.get.return_value = (
-                mock_response
-            )
+            mock_client.return_value.get.return_value = mock_response
 
             test_app.add_middleware(JWKSAuthMiddleware, jwks_validator=jwks_verifier)
             client = TestClient(test_app)
@@ -202,7 +200,7 @@ def test_custom_ca_cert(jwks_fake_data):
             assert data["user"] == claim["user"]
             assert response.status_code == 200
             mock_client.assert_called_once_with(verify=ca_cert_file.name)
-            mock_client.return_value.__enter__.return_value.get.assert_called_once_with(
+            mock_client.return_value.get.assert_called_once_with(
                 "http://my-fake-jwks-url/my-fake-endpoint"
             )
 
