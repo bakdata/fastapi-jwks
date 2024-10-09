@@ -19,7 +19,7 @@ class JWKSAuthMiddleware(BaseHTTPMiddleware):
         self.jwks_validator = jwks_validator
         self.auth_header = auth_header
         self.auth_scheme = auth_scheme
-        self.exclude_paths = exclude_paths
+        self.exclude_paths = [] if exclude_paths is None else exclude_paths
 
     async def dispatch(self, request: Request, call_next) -> Response:
         if self.exclude_paths and request.url.path in self.exclude_paths:
@@ -29,7 +29,7 @@ class JWKSAuthMiddleware(BaseHTTPMiddleware):
         if not authorization:
             return JSONResponse(
                 status_code=401,
-                content={"detail": "Authorization header missing"},
+                content={"title": "Unauthorized", "detail": "Authorization header missing"},
             )
 
         try:
@@ -38,13 +38,14 @@ class JWKSAuthMiddleware(BaseHTTPMiddleware):
                 return JSONResponse(
                     status_code=401,
                     content={
+                        "title": "Unauthorized",
                         "detail": f"Invalid authentication scheme. Expected {self.auth_scheme}"
                     },
                 )
         except ValueError:
             return JSONResponse(
                 status_code=401,
-                content={"detail": "Invalid authorization header format"},
+                content={"title": "Unauthorized", "detail": "Invalid authorization header format"},
             )
 
         try:
@@ -53,7 +54,7 @@ class JWKSAuthMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             return JSONResponse(
                 status_code=401,
-                content={"detail": str(e)},
+                content={"title": "Unauthorized", "detail": "Invalid authorization token"},
             )
 
         return await call_next(request)
