@@ -29,7 +29,10 @@ class JWKSAuthMiddleware(BaseHTTPMiddleware):
         if not authorization:
             return JSONResponse(
                 status_code=401,
-                content={"title": "Unauthorized", "detail": "Authorization header missing"},
+                content={
+                    "title": "Unauthorized",
+                    "detail": "Authorization header missing",
+                },
             )
 
         try:
@@ -39,22 +42,28 @@ class JWKSAuthMiddleware(BaseHTTPMiddleware):
                     status_code=401,
                     content={
                         "title": "Unauthorized",
-                        "detail": f"Invalid authentication scheme. Expected {self.auth_scheme}"
+                        "detail": f"Invalid authentication scheme. Expected {self.auth_scheme}",
                     },
                 )
         except ValueError:
             return JSONResponse(
                 status_code=401,
-                content={"title": "Unauthorized", "detail": "Invalid authorization header format"},
+                content={
+                    "title": "Unauthorized",
+                    "detail": "Invalid authorization header format",
+                },
             )
 
         try:
             payload = self.jwks_validator.validate_token(token)
             request.state.payload = payload
-        except Exception as e:
+        except Exception:
             return JSONResponse(
                 status_code=401,
-                content={"title": "Unauthorized", "detail": "Invalid authorization token"},
+                content={
+                    "title": "Unauthorized",
+                    "detail": "Invalid authorization token",
+                },
             )
 
         return await call_next(request)
