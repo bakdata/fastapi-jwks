@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fastapi_jwks"
-version = "0.0.1"
+version = "0.0.2"
 description = ""
 license = "MIT"
 authors = ["bakdata"]
@@ -17,8 +17,8 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.10"
 pydantic = "^2.7.1"
-fastapi = "^0.111.0"
-pyjwt = {extras = ["crypto"], version = "^2.8.0"}
+fastapi = { extras = ["standard"], version = "^0.112.1" }
+pyjwt = { extras = ["crypto"], version = "^2.8.0" }
 loguru = "^0.7.2"
 cachetools = "^5.3.3"
 types-cachetools = "^5.3.0.7"
@@ -26,7 +26,7 @@ cryptography = "^42.0.7"
 requests = "^2.31.0"
 
 [tool.poetry.group.dev.dependencies]
-pre-commit = "^3.7.0"
+pre-commit = "^4.0.1"
 ruff = "^0.3.4"
 pyright = "^1.1.355"
 pytest = "^8.1.1"
