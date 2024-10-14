@@ -14,3 +14,4 @@ class JWTDecodeConfig(BaseModel):
 
 class JWKSConfig(BaseModel):
     url: str
+    ca_cert_path: str | None = None
