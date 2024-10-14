@@ -21,49 +21,34 @@ class JWKSAuthMiddleware(BaseHTTPMiddleware):
         self.auth_scheme = auth_scheme
         self.exclude_paths = [] if exclude_paths is None else exclude_paths
 
+    def unauthorized_response(self) -> JSONResponse:
+        return JSONResponse(
+            status_code=401,
+            content={
+                "title": "Unauthorized",
+                "detail": "Invalid authorization token",
+            },
+        )
+
     async def dispatch(self, request: Request, call_next) -> Response:
         if self.exclude_paths and request.url.path in self.exclude_paths:
             return await call_next(request)
 
         authorization: str | None = request.headers.get(self.auth_header)
         if not authorization:
-            return JSONResponse(
-                status_code=401,
-                content={
-                    "title": "Unauthorized",
-                    "detail": "Authorization header missing",
-                },
-            )
+            return self.unauthorized_response()
 
         try:
             scheme, token = authorization.split()
             if scheme.lower() != self.auth_scheme.lower():
-                return JSONResponse(
-                    status_code=401,
-                    content={
-                        "title": "Unauthorized",
-                        "detail": f"Invalid authentication scheme. Expected {self.auth_scheme}",
-                    },
-                )
+                return self.unauthorized_response()
         except ValueError:
-            return JSONResponse(
-                status_code=401,
-                content={
-                    "title": "Unauthorized",
-                    "detail": "Invalid authorization header format",
-                },
-            )
+            return self.unauthorized_response()
 
         try:
             payload = self.jwks_validator.validate_token(token)
             request.state.payload = payload
         except Exception:
-            return JSONResponse(
-                status_code=401,
-                content={
-                    "title": "Unauthorized",
-                    "detail": "Invalid authorization token",
-                },
-            )
+            return self.unauthorized_response()
 
         return await call_next(request)

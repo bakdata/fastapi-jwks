@@ -140,13 +140,13 @@ def test_invalid_auth_scheme(client, jwks_fake_data):
         "/test-endpoint", headers={"Authorization": f"Invalid {signed_token}"}
     )
     assert response.status_code == 401
-    assert "Invalid authentication scheme" in response.json()["detail"]
+    assert response.json()["detail"] == "Invalid authorization token"
 
 
 def test_missing_auth_header(client):
     response = client.get("/test-endpoint")
     assert response.status_code == 401
-    assert "Authorization header missing" in response.json()["detail"]
+    assert response.json()["detail"] == "Invalid authorization token"
 
 
 def test_custom_ca_cert(jwks_fake_data):
@@ -239,7 +239,7 @@ def test_excluded_path(jwks_fake_data):
     # Test protected route without token
     response = client.get("/protected")
     assert response.status_code == 401
-    assert "Authorization header missing" in response.json()["detail"]
+    assert response.json()["detail"] == "Invalid authorization token"
 
     # Test protected route with token
     keys_definition = jwks_fake_data["keys"]
