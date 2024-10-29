@@ -1,4 +1,35 @@
 # Changelog
+## [0.1.0](https://github.com/bakdata/fastapi-jwks/releases/tag/0.1.0) - Release Date: [2024-10-29]
+
+#### Merged pull requests:
+
+- Bump pre-commit from 3.8.0 to 4.0.1 [#53](https://github.com/bakdata/fastapi-jwks/pull/53) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- Bump pytest-asyncio from 0.23.8 to 0.24.0 [#52](https://github.com/bakdata/fastapi-jwks/pull/52) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- Bump pyright from 1.1.377 to 1.1.383 [#51](https://github.com/bakdata/fastapi-jwks/pull/51) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- Bump bakdata/ci-templates from 1.45.2 to 1.46.6 [#42](https://github.com/bakdata/fastapi-jwks/pull/42) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- Bump pytest from 8.3.2 to 8.3.3 [#54](https://github.com/bakdata/fastapi-jwks/pull/54) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- Fix pending issues [#50](https://github.com/bakdata/fastapi-jwks/pull/50) ([@irux](https://github.com/irux))
+
+- Remove unused requests dependency [#61](https://github.com/bakdata/fastapi-jwks/pull/61) ([@irux](https://github.com/irux))
+
+- Bump pydantic from 2.8.2 to 2.9.2 [#58](https://github.com/bakdata/fastapi-jwks/pull/58) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- Bump fastapi from 0.112.2 to 0.115.4 [#65](https://github.com/bakdata/fastapi-jwks/pull/65) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- Bump cryptography from 42.0.8 to 43.0.3 [#63](https://github.com/bakdata/fastapi-jwks/pull/63) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- Bump pyright from 1.1.383 to 1.1.386 [#67](https://github.com/bakdata/fastapi-jwks/pull/67) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- Bump bakdata/ci-templates from 1.46.6 to 1.47.0 [#56](https://github.com/bakdata/fastapi-jwks/pull/56) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+
+
+
 ## [0.0.2](https://github.com/bakdata/fastapi-jwks/releases/tag/0.0.2) - Release Date: [2024-08-28]
 
 #### Merged pull requests:
