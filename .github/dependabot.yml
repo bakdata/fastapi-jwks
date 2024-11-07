@@ -9,5 +9,6 @@ updates:
   # Maintain dependencies for Poetry
   - package-ecosystem: "pip"
     directory: "/"
+    versioning-strategy: increase-if-necessary
     schedule:
       interval: "weekly"
