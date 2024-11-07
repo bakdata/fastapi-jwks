@@ -1,4 +1,13 @@
 # Changelog
+## [0.1.1](https://github.com/bakdata/fastapi-jwks/releases/tag/0.1.1) - Release Date: [2024-11-07]
+
+#### Merged pull requests:
+
+- Loosen constraint for main dependencies Pydantic & FastAPI [#71](https://github.com/bakdata/fastapi-jwks/pull/71) ([@disrupted](https://github.com/disrupted))
+
+
+
+
 ## [0.1.0](https://github.com/bakdata/fastapi-jwks/releases/tag/0.1.0) - Release Date: [2024-10-29]
 
 #### Merged pull requests:
