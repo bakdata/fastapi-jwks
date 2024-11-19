@@ -3,15 +3,17 @@ from typing import Any, Generic, TypeVar
 
 import httpx
 import jwt
+import structlog
 from cachetools import TTLCache, cached
 from fastapi import HTTPException
 from jwt import algorithms
-from loguru import logger
 from pydantic import BaseModel
 
 from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig
 
 DataT = TypeVar("DataT", bound=BaseModel)
+
+logger = structlog.get_logger()
 
 
 class JWKSValidator(Generic[DataT]):
