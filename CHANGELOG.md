@@ -1,4 +1,13 @@
 # Changelog
+## [0.2.0](https://github.com/bakdata/fastapi-jwks/releases/tag/0.2.0) - Release Date: [2025-01-29]
+
+#### Merged pull requests:
+
+- Improve logging [#101](https://github.com/bakdata/fastapi-jwks/pull/101) ([@torbsto](https://github.com/torbsto))
+
+
+
+
 ## [0.1.1](https://github.com/bakdata/fastapi-jwks/releases/tag/0.1.1) - Release Date: [2024-11-07]
 
 #### Merged pull requests:
