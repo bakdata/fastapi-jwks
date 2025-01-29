@@ -1,3 +1,4 @@
+import logging
 from functools import cached_property
 from typing import Any, Generic, TypeVar
 
@@ -6,7 +7,6 @@ import jwt
 from cachetools import TTLCache, cached
 from fastapi import HTTPException
 from jwt import algorithms
-from loguru import logger
 from pydantic import BaseModel
 
 from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig
@@ -29,7 +29,7 @@ class JWKSValidator(Generic[DataT]):
     @cached(cache=TTLCache(ttl=600, maxsize=1))
     def jwks_data(self) -> dict[str, Any]:
         try:
-            logger.debug("Fetching JWKS from %s", self.jwks_config.url)
+            logging.debug("Fetching JWKS from %s", self.jwks_config.url)
             jwks_response = self.client.get(self.jwks_config.url)
             jwks_response.raise_for_status()
         except httpx.RequestError as e:
@@ -42,7 +42,7 @@ class JWKSValidator(Generic[DataT]):
     @staticmethod
     def __extract_algorithms(jwks_response: dict[str, Any]) -> list[str]:
         if "keys" not in jwks_response:
-            raise ValueError("JWKS response does not contain keys")
+            raise HTTPException(status_code=401, detail="Invalid token")
         keys = jwks_response["keys"]
         return [key["alg"] for key in keys]
 
@@ -63,7 +63,11 @@ class JWKSValidator(Generic[DataT]):
             header = jwt.get_unverified_header(token)
             kid = header["kid"]
             jwks_data = self.jwks_data()
+            provided_algorithms = self.__extract_algorithms(jwks_data)
             if header["alg"] not in self.__extract_algorithms(jwks_data):
+                logging.debug(
+                    f"Could not find '{header['alg']}' in provided algorithms: {provided_algorithms}"
+                )
                 raise HTTPException(status_code=401, detail="Invalid token")
             for key in jwks_data["keys"]:
                 if key["kid"] == kid:
@@ -72,6 +76,9 @@ class JWKSValidator(Generic[DataT]):
                     ].from_jwk(key)
                     break
             if public_key is None:
+                logging.debug(
+                    f"No public key for provided algorithm '{header['alg']}' found in JWKS data"
+                )
                 raise HTTPException(status_code=401, detail="Invalid token")
             return self.__orig_class__.__args__[0].model_validate(  # type: ignore
                 # This line gets the generic value in runtime to transform it to the correct pydantic model
@@ -83,6 +90,8 @@ class JWKSValidator(Generic[DataT]):
                 )
             )
         except jwt.ExpiredSignatureError:
+            logging.debug("Expired token", exc_info=True)
             raise HTTPException(status_code=401, detail="Token has expired") from None
         except jwt.InvalidTokenError:
+            logging.debug("Invalid token", exc_info=True)
             raise HTTPException(status_code=401, detail="Invalid token") from None
