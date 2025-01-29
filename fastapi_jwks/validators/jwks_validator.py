@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig
 
-logger =  logging.getLogger("fastapi-jwks")
+logger = logging.getLogger("fastapi-jwks")
 
 DataT = TypeVar("DataT", bound=BaseModel)
 
