@@ -11,6 +11,8 @@ from pydantic import BaseModel
 
 from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig
 
+logger =  logging.getLogger("fastapi-jwks")
+
 DataT = TypeVar("DataT", bound=BaseModel)
 
 
@@ -29,7 +31,7 @@ class JWKSValidator(Generic[DataT]):
     @cached(cache=TTLCache(ttl=600, maxsize=1))
     def jwks_data(self) -> dict[str, Any]:
         try:
-            logging.debug("Fetching JWKS from %s", self.jwks_config.url)
+            logger.debug("Fetching JWKS from %s", self.jwks_config.url)
             jwks_response = self.client.get(self.jwks_config.url)
             jwks_response.raise_for_status()
         except httpx.RequestError as e:
@@ -62,7 +64,7 @@ class JWKSValidator(Generic[DataT]):
             jwks_data = self.jwks_data()
             provided_algorithms = self.__extract_algorithms(jwks_data)
             if header["alg"] not in provided_algorithms:
-                logging.debug(
+                logger.debug(
                     f"Could not find '{header['alg']}' in provided algorithms: {provided_algorithms}"
                 )
                 raise HTTPException(status_code=401, detail="Invalid token")
@@ -73,7 +75,7 @@ class JWKSValidator(Generic[DataT]):
                     ].from_jwk(key)
                     break
             if public_key is None:
-                logging.debug(
+                logger.debug(
                     f"No public key for provided algorithm '{header['alg']}' found in JWKS data"
                 )
                 raise HTTPException(status_code=401, detail="Invalid token")
@@ -87,8 +89,8 @@ class JWKSValidator(Generic[DataT]):
                 )
             )
         except jwt.ExpiredSignatureError:
-            logging.debug("Expired token", exc_info=True)
+            logger.debug("Expired token", exc_info=True)
             raise HTTPException(status_code=401, detail="Token has expired") from None
         except jwt.InvalidTokenError:
-            logging.debug("Invalid token", exc_info=True)
+            logger.debug("Invalid token", exc_info=True)
             raise HTTPException(status_code=401, detail="Invalid token") from None
