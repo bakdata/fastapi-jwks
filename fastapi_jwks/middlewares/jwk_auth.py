@@ -3,6 +3,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp
 
+from fastapi_jwks.models.types import JWKSMiddlewareConfig
 from fastapi_jwks.validators import JWKSValidator
 
 
@@ -11,11 +12,13 @@ class JWKSAuthMiddleware(BaseHTTPMiddleware):
         self,
         app: ASGIApp,
         jwks_validator: JWKSValidator,
+        config: JWKSMiddlewareConfig | None = None,
         auth_header: str = "Authorization",
         auth_scheme: str = "Bearer",
         exclude_paths: list[str] | None = None,
     ):
         super().__init__(app)
+        self.config = config or JWKSMiddlewareConfig()
         self.jwks_validator = jwks_validator
         self.auth_header = auth_header
         self.auth_scheme = auth_scheme
@@ -47,7 +50,8 @@ class JWKSAuthMiddleware(BaseHTTPMiddleware):
 
         try:
             payload = self.jwks_validator.validate_token(token)
-            request.state.payload = payload
+            setattr(request.state, self.config.payload_field, payload)
+            setattr(request.state, self.config.token_field, token)
         except Exception:
             return self.unauthorized_response()
 

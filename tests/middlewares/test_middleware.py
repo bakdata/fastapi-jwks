@@ -9,8 +9,14 @@ from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.testclient import TestClient
 
+from fastapi_jwks.injector.payload_injector import JWTRawTokenInjector, JWTTokenInjector
 from fastapi_jwks.middlewares.jwk_auth import JWKSAuthMiddleware
-from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig
+from fastapi_jwks.models.types import (
+    JWKSConfig,
+    JWKSMiddlewareConfig,
+    JWTDecodeConfig,
+    JWTTokenInjectorConfig,
+)
 from fastapi_jwks.validators import JWKSValidator
 
 
@@ -260,4 +266,124 @@ def test_excluded_path(jwks_fake_data):
     assert data["user"] == claim["user"]
     assert response.status_code == 200
 
+    mocked_jwt.stop()
+
+
+def test_custom_state_fields(jwks_fake_data):
+    test_app = FastAPI()
+
+    @test_app.get("/test-endpoint", response_model=dict)
+    def get_test_route(request: Request):
+        return {
+            "custom_payload": request.state.custom_payload.model_dump(),
+            "custom_token": request.state.custom_token,
+        }
+
+    jwks_verifier = JWKSValidator[FakeToken](
+        decode_config=JWTDecodeConfig(),
+        jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
+    )
+    mocked_jwt = patch(
+        "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
+        return_value=jwks_fake_data,
+    )
+    mocked_jwt.start()
+
+    test_app.add_middleware(
+        JWKSAuthMiddleware,
+        jwks_validator=jwks_verifier,
+        config=JWKSMiddlewareConfig(
+            payload_field="custom_payload", token_field="custom_token"
+        ),
+    )
+
+    client = TestClient(test_app)
+
+    # Test without token
+    response = client.get("/test-endpoint")
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid authorization token"
+
+    # Test with token
+    keys_definition = jwks_fake_data["keys"]
+    key = keys_definition[0]["k"]
+    algo = keys_definition[0]["alg"]
+    kid = keys_definition[0]["kid"]
+
+    claim = {"user": "custom-fields-user"}
+    signed_token = jwt.encode(
+        claim, base64.urlsafe_b64decode(key), headers={"kid": kid}, algorithm=algo
+    )
+
+    response = client.get(
+        "/test-endpoint", headers={"Authorization": f"Bearer {signed_token}"}
+    )
+    data = response.json()
+
+    assert data["custom_payload"]["user"] == claim["user"]
+    assert data["custom_token"] == signed_token
+    assert response.status_code == 200
+    mocked_jwt.stop()
+
+
+@pytest.mark.asyncio()
+async def test_token_injector_with_custom_fields(jwks_fake_data):
+    test_app = FastAPI()
+
+    @test_app.get("/test-endpoint", response_model=dict)
+    async def get_test_route(request: Request):
+        payload_injector = JWTTokenInjector[FakeToken](
+            config=JWTTokenInjectorConfig(payload_field="custom_payload")
+        )
+        token_injector = JWTRawTokenInjector(
+            config=JWTTokenInjectorConfig(token_field="custom_token")
+        )
+        payload = await payload_injector(request)
+        token = await token_injector(request)
+        return {"injected_payload": payload.model_dump(), "injected_token": token}
+
+    jwks_verifier = JWKSValidator[FakeToken](
+        decode_config=JWTDecodeConfig(),
+        jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
+    )
+    mocked_jwt = patch(
+        "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
+        return_value=jwks_fake_data,
+    )
+    mocked_jwt.start()
+
+    test_app.add_middleware(
+        JWKSAuthMiddleware,
+        jwks_validator=jwks_verifier,
+        config=JWKSMiddlewareConfig(
+            payload_field="custom_payload", token_field="custom_token"
+        ),
+    )
+
+    client = TestClient(test_app)
+
+    # Test without token
+    response = client.get("/test-endpoint")
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Invalid authorization token"
+
+    # Test with token
+    keys_definition = jwks_fake_data["keys"]
+    key = keys_definition[0]["k"]
+    algo = keys_definition[0]["alg"]
+    kid = keys_definition[0]["kid"]
+
+    claim = {"user": "injector-custom-fields-user"}
+    signed_token = jwt.encode(
+        claim, base64.urlsafe_b64decode(key), headers={"kid": kid}, algorithm=algo
+    )
+
+    response = client.get(
+        "/test-endpoint", headers={"Authorization": f"Bearer {signed_token}"}
+    )
+    data = response.json()
+
+    assert data["injected_payload"]["user"] == claim["user"]
+    assert data["injected_token"] == signed_token
+    assert response.status_code == 200
     mocked_jwt.stop()

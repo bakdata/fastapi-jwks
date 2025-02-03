@@ -12,6 +12,16 @@ class JWTDecodeConfig(BaseModel):
     verify: bool | None = None
 
 
+class JWKSMiddlewareConfig(BaseModel):
+    payload_field: str = "payload"
+    token_field: str = "raw_token"
+
+
 class JWKSConfig(BaseModel):
     url: str
     ca_cert_path: str | None = None
+
+
+class JWTTokenInjectorConfig(BaseModel):
+    payload_field: str = "payload"
+    token_field: str = "raw_token"
