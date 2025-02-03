@@ -1,19 +1,23 @@
 import base64
-import email
 import tempfile
 from unittest.mock import MagicMock, patch
 
 import jwt
 import pytest
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.testclient import TestClient
 
+from fastapi_jwks.injector.payload_injector import JWTRawTokenInjector, JWTTokenInjector
 from fastapi_jwks.middlewares.jwk_auth import JWKSAuthMiddleware
-from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig, JWKSMiddlewareConfig, JWTTokenInjectorConfig
+from fastapi_jwks.models.types import (
+    JWKSConfig,
+    JWKSMiddlewareConfig,
+    JWTDecodeConfig,
+    JWTTokenInjectorConfig,
+)
 from fastapi_jwks.validators import JWKSValidator
-from fastapi_jwks.injector.payload_injector import JWTTokenInjector, JWTRawTokenInjector
 
 
 class FakeToken(BaseModel):
@@ -284,14 +288,13 @@ def test_custom_state_fields(jwks_fake_data):
         return_value=jwks_fake_data,
     )
     mocked_jwt.start()
-    
+
     test_app.add_middleware(
         JWKSAuthMiddleware,
         jwks_validator=jwks_verifier,
         config=JWKSMiddlewareConfig(
-            payload_field="custom_payload",
-            token_field="custom_token"
-        )
+            payload_field="custom_payload", token_field="custom_token"
+        ),
     )
 
     client = TestClient(test_app)
@@ -328,18 +331,16 @@ async def test_token_injector_with_custom_fields(jwks_fake_data):
     test_app = FastAPI()
 
     @test_app.get("/test-endpoint", response_model=dict)
-    async def get_test_route(
-        payload: FakeToken = Depends(JWTTokenInjector[FakeToken](
+    async def get_test_route(request: Request):
+        payload_injector = JWTTokenInjector[FakeToken](
             config=JWTTokenInjectorConfig(payload_field="custom_payload")
-        )),
-        token: str = Depends(JWTRawTokenInjector[str](
+        )
+        token_injector = JWTRawTokenInjector[str](
             config=JWTTokenInjectorConfig(token_field="custom_token")
-        ))
-    ):
-        return {
-            "injected_payload": payload.model_dump(),
-            "injected_token": token
-        }
+        )
+        payload = await payload_injector(request)
+        token = await token_injector(request)
+        return {"injected_payload": payload.model_dump(), "injected_token": token}
 
     jwks_verifier = JWKSValidator[FakeToken](
         decode_config=JWTDecodeConfig(),
@@ -350,14 +351,13 @@ async def test_token_injector_with_custom_fields(jwks_fake_data):
         return_value=jwks_fake_data,
     )
     mocked_jwt.start()
-    
+
     test_app.add_middleware(
         JWKSAuthMiddleware,
         jwks_validator=jwks_verifier,
         config=JWKSMiddlewareConfig(
-            payload_field="custom_payload",
-            token_field="custom_token"
-        )
+            payload_field="custom_payload", token_field="custom_token"
+        ),
     )
 
     client = TestClient(test_app)

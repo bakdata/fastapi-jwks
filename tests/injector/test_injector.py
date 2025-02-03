@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import BaseModel
 
-from fastapi_jwks.injector import JWTTokenInjector, JWTRawTokenInjector
+from fastapi_jwks.injector import JWTRawTokenInjector, JWTTokenInjector
 from fastapi_jwks.models.types import JWTTokenInjectorConfig
 
 
