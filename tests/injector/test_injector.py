@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import BaseModel
 
-from fastapi_jwks.injector import JWTRawTokenInjector, JWTTokenInjector
+from fastapi_jwks.injector import JWTTokenInjector, JWTRawTokenInjector
 from fastapi_jwks.models.types import JWTTokenInjectorConfig
 
 
@@ -23,7 +23,7 @@ async def test_injector_return_call():
 async def test_raw_token_injector_return_call():
     token = "my-fake-token"
     mock_request = MagicMock(state=MagicMock(raw_token=token))
-    injector = JWTRawTokenInjector[str]()
+    injector = JWTRawTokenInjector()
     assert (await injector(mock_request)) == token
 
 
@@ -41,5 +41,5 @@ async def test_raw_token_injector_with_custom_field():
     token = "my-fake-token"
     mock_request = MagicMock(state=MagicMock(custom_token=token))
     config = JWTTokenInjectorConfig(token_field="custom_token")
-    injector = JWTRawTokenInjector[str](config=config)
+    injector = JWTRawTokenInjector(config=config)
     assert (await injector(mock_request)) == token

@@ -335,7 +335,7 @@ async def test_token_injector_with_custom_fields(jwks_fake_data):
         payload_injector = JWTTokenInjector[FakeToken](
             config=JWTTokenInjectorConfig(payload_field="custom_payload")
         )
-        token_injector = JWTRawTokenInjector[str](
+        token_injector = JWTRawTokenInjector(
             config=JWTTokenInjectorConfig(token_field="custom_token")
         )
         payload = await payload_injector(request)
