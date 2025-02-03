@@ -55,13 +55,7 @@ pre-commit run --all-files
 
 ## Pull Request Process
 
-1. Create an issue describing the changes you want to make
-2. Fork the repository and create a branch from `main`
-3. Make your changes and commit them with clear, descriptive commit messages
-4. Update the README.md if needed
-5. Add or modify tests as needed
-6. Push to your fork and submit a pull request
-7. Wait for the review and address any comments
+We are happy if you want to contribute to this project. If you find any bugs or have suggestions for improvements, please open an issue. We are also happy to accept your PRs. Just open an issue beforehand and let us know what you want to do and why.
 
 ## License
 
