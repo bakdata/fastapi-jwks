@@ -1,4 +1,13 @@
 # Changelog
+## [0.3.0](https://github.com/bakdata/fastapi-jwks/releases/tag/0.3.0) - Release Date: [2025-02-03]
+
+#### Merged pull requests:
+
+- Add configurable token and payload field names for middleware and injector [#102](https://github.com/bakdata/fastapi-jwks/pull/102) ([@irux](https://github.com/irux))
+
+
+
+
 ## [0.2.0](https://github.com/bakdata/fastapi-jwks/releases/tag/0.2.0) - Release Date: [2025-01-29]
 
 #### Merged pull requests:
