@@ -65,4 +65,4 @@ pre-commit run --all-files
 
 ## License
 
-By contributing to fastapi-jwks, you agree that your contributions will be licensed under its MIT License.
+fastapi-jwks is licensed under the [MIT License](https://github.com/bakdata/fastapi-jwks/blob/main/LICENSE).
