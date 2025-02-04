@@ -1,3 +1,3 @@
 from .payload_injector import JWTRawTokenInjector, JWTTokenInjector
 
-__all__ = ["JWTTokenInjector", "JWTRawTokenInjector"]
+__all__ = ["JWTRawTokenInjector", "JWTTokenInjector"]
