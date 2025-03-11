@@ -43,7 +43,7 @@ class JWKSValidator(Generic[DataT]):
 
     @staticmethod
     def __extract_algorithms(jwks_response: dict[str, Any]) -> list[str]:
-        return [key["alg"] for key in jwks_response["keys"]]
+        return [key["alg"] for key in jwks_response["keys"] if "alg" in key]
 
     @cached_property
     def __is_generic_passed(self):
@@ -63,7 +63,7 @@ class JWKSValidator(Generic[DataT]):
             kid = header["kid"]
             jwks_data = self.jwks_data()
             provided_algorithms = self.__extract_algorithms(jwks_data)
-            if header["alg"] not in provided_algorithms:
+            if provided_algorithms and header["alg"] not in provided_algorithms:
                 logger.debug(
                     f"Could not find '{header['alg']}' in provided algorithms: {provided_algorithms}"
                 )
