@@ -43,10 +43,10 @@ class JWKSValidator(Generic[DataT]):
             ) from e
         try:
             return JWKS.model_validate(jwks_response.json())
-        except ValidationError:
+        except ValidationError as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Invalid JWKS"
-            )
+            ) from e
 
     @cached_property
     def __is_generic_passed(self) -> bool:
