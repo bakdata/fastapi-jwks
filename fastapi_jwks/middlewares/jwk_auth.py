@@ -1,4 +1,6 @@
-from fastapi import Request, Response
+from typing import final
+
+from fastapi import Request, Response, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp
@@ -7,6 +9,7 @@ from fastapi_jwks.models.types import JWKSMiddlewareConfig
 from fastapi_jwks.validators import JWKSValidator
 
 
+@final
 class JWKSAuthMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
@@ -26,7 +29,7 @@ class JWKSAuthMiddleware(BaseHTTPMiddleware):
 
     def unauthorized_response(self) -> JSONResponse:
         return JSONResponse(
-            status_code=401,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             content={
                 "title": "Unauthorized",
                 "detail": "Invalid authorization token",
