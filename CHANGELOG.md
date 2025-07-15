@@ -1,4 +1,21 @@
 # Changelog
+## [0.4.0](https://github.com/bakdata/fastapi-jwks/releases/tag/0.4.0) - Release Date: [2025-03-19]
+
+#### Merged pull requests:
+
+- Bump pytest-asyncio from 0.24.0 to 0.25.3 [#103](https://github.com/bakdata/fastapi-jwks/pull/103) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- Bump pyright from 1.1.392.post0 to 1.1.393 [#105](https://github.com/bakdata/fastapi-jwks/pull/105) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- Bump pytest-cov from 5.0.0 to 6.0.0 [#69](https://github.com/bakdata/fastapi-jwks/pull/69) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- Bump ruff from 0.3.7 to 0.9.4 [#106](https://github.com/bakdata/fastapi-jwks/pull/106) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- Bump dependencies [#126](https://github.com/bakdata/fastapi-jwks/pull/126) ([@torbsto](https://github.com/torbsto))
+
+
+
+
 ## [0.3.0](https://github.com/bakdata/fastapi-jwks/releases/tag/0.3.0) - Release Date: [2025-02-03]
 
 #### Merged pull requests:
