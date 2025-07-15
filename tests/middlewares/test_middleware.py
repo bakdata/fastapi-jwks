@@ -12,6 +12,7 @@ from starlette.testclient import TestClient
 from fastapi_jwks.injector.payload_injector import JWTRawTokenInjector, JWTTokenInjector
 from fastapi_jwks.middlewares.jwk_auth import JWKSAuthMiddleware
 from fastapi_jwks.models.types import (
+    JWKS,
     JWKSConfig,
     JWKSMiddlewareConfig,
     JWTDecodeConfig,
@@ -25,22 +26,24 @@ class FakeToken(BaseModel):
 
 
 @pytest.fixture()
-def jwks_fake_data():
-    return {
-        "keys": [
-            {
-                "kty": "oct",
-                "use": "sig",
-                "kid": "sYW9Qh23pPfbD06_F4UY6oAdi2FlNTwBAV6L6YMLY3o",
-                "k": "b3NFUGVJR09BRW1JMzd6UTdYLUtaT0haci1ZUTZSVzhqaGd0QVhBdThKazZMSWFMclg3TXJsTHJ3YTZXenM3NWI4U1l3em1sQ0VLdXlJeXpVeXNDMmRLeVZ5RkVHSHZ5OWdtNk1PSGRTWjZXWDdWN3VIMHpaZmlkbDZhVV9LYTI0dnF3WHlYaXBKWHV5LWJoMVl4U0w4M0RRVnhmbk43X2NSMHNGbzVoSmFhUnJpT2NYWUt2SEJ2YXQ0dHFRMldJZnNTenJxdTA5alY0RFN4TjdXaTJ5NHJrU1dmVXY4cVV2ZU9OUHVUc3hQQURRb3RKdExsMUtEeGRjUHFIVkZPUTRmODhMZkZJb3ZreXZsNEZiSHM3Q05Uejh2Z0Etdml2cGhRNXJyVGVuUjUxaUd0c0lybC14V29KZXFzQ3lDVXdGdzl2SmxheFhqWXM0TDBsT3dLcGVR",
-                "alg": "HS256",
-            }
-        ]
-    }
+def jwks_fake_data() -> JWKS:
+    return JWKS.model_validate(
+        {
+            "keys": [
+                {
+                    "kty": "oct",
+                    "use": "sig",
+                    "kid": "sYW9Qh23pPfbD06_F4UY6oAdi2FlNTwBAV6L6YMLY3o",
+                    "k": "b3NFUGVJR09BRW1JMzd6UTdYLUtaT0haci1ZUTZSVzhqaGd0QVhBdThKazZMSWFMclg3TXJsTHJ3YTZXenM3NWI4U1l3em1sQ0VLdXlJeXpVeXNDMmRLeVZ5RkVHSHZ5OWdtNk1PSGRTWjZXWDdWN3VIMHpaZmlkbDZhVV9LYTI0dnF3WHlYaXBKWHV5LWJoMVl4U0w4M0RRVnhmbk43X2NSMHNGbzVoSmFhUnJpT2NYWUt2SEJ2YXQ0dHFRMldJZnNTenJxdTA5alY0RFN4TjdXaTJ5NHJrU1dmVXY4cVV2ZU9OUHVUc3hQQURRb3RKdExsMUtEeGRjUHFIVkZPUTRmODhMZkZJb3ZreXZsNEZiSHM3Q05Uejh2Z0Etdml2cGhRNXJyVGVuUjUxaUd0c0lybC14V29KZXFzQ3lDVXdGdzl2SmxheFhqWXM0TDBsT3dLcGVR",
+                    "alg": "HS256",
+                }
+            ]
+        }
+    )
 
 
 @pytest.fixture()
-def app(jwks_fake_data):
+def app(jwks_fake_data: JWKS):
     test_app = FastAPI()
 
     @test_app.get("/test-endpoint", response_model=FakeToken)
@@ -66,11 +69,12 @@ def client(app: FastAPI) -> TestClient:
     return TestClient(app)
 
 
-def test_simple_example(client, jwks_fake_data):
-    keys_definition = jwks_fake_data["keys"]
-    key = keys_definition[0]["k"]
-    algo = keys_definition[0]["alg"]
-    kid = keys_definition[0]["kid"]
+def test_simple_example(client: TestClient, jwks_fake_data: JWKS):
+    jwk = jwks_fake_data.keys[0]
+    key = jwk.k
+    assert key
+    algo = jwk.alg
+    kid = jwk.kid
 
     claim = {"user": "my-fake-user"}
     signed_token = jwt.encode(
@@ -86,7 +90,7 @@ def test_simple_example(client, jwks_fake_data):
     assert response.status_code == 200
 
 
-def test_custom_auth_header_and_scheme(jwks_fake_data):
+def test_custom_auth_header_and_scheme(jwks_fake_data: JWKS):
     test_app = FastAPI()
 
     @test_app.get("/test-endpoint", response_model=FakeToken)
@@ -111,10 +115,11 @@ def test_custom_auth_header_and_scheme(jwks_fake_data):
 
     client = TestClient(test_app)
 
-    keys_definition = jwks_fake_data["keys"]
-    key = keys_definition[0]["k"]
-    algo = keys_definition[0]["alg"]
-    kid = keys_definition[0]["kid"]
+    jwk = jwks_fake_data.keys[0]
+    key = jwk.k
+    assert key
+    algo = jwk.alg
+    kid = jwk.kid
 
     claim = {"user": "my-custom-user"}
     signed_token = jwt.encode(
@@ -131,11 +136,12 @@ def test_custom_auth_header_and_scheme(jwks_fake_data):
     mocked_jwt.stop()
 
 
-def test_invalid_auth_scheme(client, jwks_fake_data):
-    keys_definition = jwks_fake_data["keys"]
-    key = keys_definition[0]["k"]
-    algo = keys_definition[0]["alg"]
-    kid = keys_definition[0]["kid"]
+def test_invalid_auth_scheme(client, jwks_fake_data: JWKS):
+    jwk = jwks_fake_data.keys[0]
+    key = jwk.k
+    assert key
+    algo = jwk.alg
+    kid = jwk.kid
 
     claim = {"user": "my-fake-user"}
     signed_token = jwt.encode(
@@ -155,7 +161,7 @@ def test_missing_auth_header(client):
     assert response.json()["detail"] == "Invalid authorization token"
 
 
-def test_custom_ca_cert(jwks_fake_data):
+def test_custom_ca_cert(jwks_fake_data: JWKS):
     test_app = FastAPI()
 
     @test_app.get("/test-endpoint", response_model=FakeToken)
@@ -185,10 +191,11 @@ def test_custom_ca_cert(jwks_fake_data):
             test_app.add_middleware(JWKSAuthMiddleware, jwks_validator=jwks_verifier)
             client = TestClient(test_app)
 
-            keys_definition = jwks_fake_data["keys"]
-            key = keys_definition[0]["k"]
-            algo = keys_definition[0]["alg"]
-            kid = keys_definition[0]["kid"]
+            jwk = jwks_fake_data.keys[0]
+            key = jwk.k
+            assert key
+            algo = jwk.alg
+            kid = jwk.kid
 
             claim = {"user": "my-custom-ca-user"}
             signed_token = jwt.encode(
@@ -211,7 +218,7 @@ def test_custom_ca_cert(jwks_fake_data):
             )
 
 
-def test_excluded_path(jwks_fake_data):
+def test_excluded_path(jwks_fake_data: JWKS):
     test_app = FastAPI()
 
     @test_app.get("/public", response_model=dict)
@@ -248,10 +255,11 @@ def test_excluded_path(jwks_fake_data):
     assert response.json()["detail"] == "Invalid authorization token"
 
     # Test protected route with token
-    keys_definition = jwks_fake_data["keys"]
-    key = keys_definition[0]["k"]
-    algo = keys_definition[0]["alg"]
-    kid = keys_definition[0]["kid"]
+    jwk = jwks_fake_data.keys[0]
+    key = jwk.k
+    assert key
+    algo = jwk.alg
+    kid = jwk.kid
 
     claim = {"user": "my-fake-user"}
     signed_token = jwt.encode(
@@ -269,7 +277,7 @@ def test_excluded_path(jwks_fake_data):
     mocked_jwt.stop()
 
 
-def test_custom_state_fields(jwks_fake_data):
+def test_custom_state_fields(jwks_fake_data: JWKS):
     test_app = FastAPI()
 
     @test_app.get("/test-endpoint", response_model=dict)
@@ -305,10 +313,11 @@ def test_custom_state_fields(jwks_fake_data):
     assert response.json()["detail"] == "Invalid authorization token"
 
     # Test with token
-    keys_definition = jwks_fake_data["keys"]
-    key = keys_definition[0]["k"]
-    algo = keys_definition[0]["alg"]
-    kid = keys_definition[0]["kid"]
+    jwk = jwks_fake_data.keys[0]
+    key = jwk.k
+    assert key
+    algo = jwk.alg
+    kid = jwk.kid
 
     claim = {"user": "custom-fields-user"}
     signed_token = jwt.encode(
@@ -327,7 +336,7 @@ def test_custom_state_fields(jwks_fake_data):
 
 
 @pytest.mark.asyncio()
-async def test_token_injector_with_custom_fields(jwks_fake_data):
+async def test_token_injector_with_custom_fields(jwks_fake_data: JWKS):
     test_app = FastAPI()
 
     @test_app.get("/test-endpoint", response_model=dict)
@@ -368,10 +377,11 @@ async def test_token_injector_with_custom_fields(jwks_fake_data):
     assert response.json()["detail"] == "Invalid authorization token"
 
     # Test with token
-    keys_definition = jwks_fake_data["keys"]
-    key = keys_definition[0]["k"]
-    algo = keys_definition[0]["alg"]
-    kid = keys_definition[0]["kid"]
+    jwk = jwks_fake_data.keys[0]
+    key = jwk.k
+    assert key
+    algo = jwk.alg
+    kid = jwk.kid
 
     claim = {"user": "injector-custom-fields-user"}
     signed_token = jwt.encode(
