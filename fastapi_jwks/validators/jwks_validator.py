@@ -4,10 +4,11 @@ from typing import Any, Generic, TypeVar, final
 
 import httpx
 import jwt
+import pydantic
 from cachetools import TTLCache, cached
 from fastapi import HTTPException, status
 from jwt import algorithms
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 from fastapi_jwks.models.types import JWKS, JWKSConfig, JWTDecodeConfig, JWTHeader
 
@@ -43,7 +44,7 @@ class JWKSValidator(Generic[DataT]):
             ) from e
         try:
             return JWKS.model_validate(jwks_response.json())
-        except ValidationError as e:
+        except pydantic.ValidationError as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Invalid JWKS"
             ) from e
@@ -97,7 +98,7 @@ class JWKSValidator(Generic[DataT]):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired"
             ) from None
-        except jwt.InvalidTokenError:
+        except (pydantic.ValidationError, jwt.InvalidTokenError):
             logger.debug("Invalid token", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
