@@ -89,7 +89,7 @@ class JWKSValidator(Generic[DataT]):
                     token,
                     key=public_key,
                     **self.decode_config.model_dump(),
-                    algorithms=[header.alg] if header.alg else None,
+                    algorithms=[header.alg],
                 )
             )
         except jwt.ExpiredSignatureError:
