@@ -28,6 +28,11 @@ class JWTTokenInjectorConfig(BaseModel):
 
 
 class JWTHeader(BaseModel):
+    """JSON Web Token
+
+    RFC: https://datatracker.ietf.org/doc/html/rfc7519
+    """
+
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
 
     alg: Annotated[str, Field(description="Algorithm used for signing")]
@@ -44,13 +49,20 @@ class JWTHeader(BaseModel):
     x5t: Annotated[
         str | None, Field(description="X.509 Certificate SHA-1 Thumbprint")
     ] = None
-    x5tS256: Annotated[
-        str | None, Field(description="X.509 Certificate SHA-256 Thumbprint")
+    x5t_s256: Annotated[
+        str | None,
+        Field(
+            description="X.509 Certificate SHA-256 Thumbprint",
+            validation_alias="x5t#S256",
+        ),
     ] = None
 
 
 class JWK(BaseModel):
-    """JSON Web Key"""
+    """JSON Web Key
+
+    RFC: https://datatracker.ietf.org/doc/html/rfc7517#section-4
+    """
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow", frozen=True)
 
@@ -69,7 +81,11 @@ class JWK(BaseModel):
         str | None, Field(description="X.509 Certificate SHA-1 Thumbprint")
     ] = None
     x5t_s256: Annotated[
-        str | None, Field(description="X.509 Certificate SHA-256 Thumbprint")
+        str | None,
+        Field(
+            description="X.509 Certificate SHA-256 Thumbprint",
+            validation_alias="x5t#S256",
+        ),
     ] = None
     n: Annotated[str | None, Field(description="Modulus for RSA keys")] = None
     e: Annotated[str | None, Field(description="Exponent for RSA keys")] = None
