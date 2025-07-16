@@ -1,5 +1,6 @@
 import base64
 import tempfile
+from collections.abc import Callable
 from unittest.mock import MagicMock, patch
 
 import jwt
@@ -14,7 +15,10 @@ class FakeToken(BaseModel):
     user: str
 
 
-def jwks_fake_data():
+JWKSData = dict[str, list[dict[str, str]]]
+
+
+def jwks_fake_data() -> JWKSData:
     return {
         "keys": [
             {
@@ -28,8 +32,21 @@ def jwks_fake_data():
     }
 
 
+def jwks_fake_data_no_alg() -> JWKSData:
+    return {
+        "keys": [
+            {
+                "kty": "oct",
+                "use": "sig",
+                "kid": "sYW9Qh23pPfbD06_F4UY6oAdi2FlNTwBAV6L6YMLY3o",
+                "k": "b3NFUGVJR09BRW1JMzd6UTdYLUtaT0haci1ZUTZSVzhqaGd0QVhBdThKazZMSWFMclg3TXJsTHJ3YTZXenM3NWI4U1l3em1sQ0VLdXlJeXpVeXNDMmRLeVZ5RkVHSHZ5OWdtNk1PSGRTWjZXWDdWN3VIMHpaZmlkbDZhVV9LYTI0dnF3WHlYaXBKWHV5LWJoMVl4U0w4M0RRVnhmbk43X2NSMHNGbzVoSmFhUnJpT2NYWUt2SEJ2YXQ0dHFRMldJZnNTenJxdTA5alY0RFN4TjdXaTJ5NHJrU1dmVXY4cVV2ZU9OUHVUc3hQQURRb3RKdExsMUtEeGRjUHFIVkZPUTRmODhMZkZJb3ZreXZsNEZiSHM3Q05Uejh2Z0Etdml2cGhRNXJyVGVuUjUxaUd0c0lybC14V29KZXFzQ3lDVXdGdzl2SmxheFhqWXM0TDBsT3dLcGVR",
+            }
+        ]
+    }
+
+
 @pytest.fixture()
-def signed_token():
+def signed_token() -> str:
     keys_definition = jwks_fake_data()["keys"]
     key = keys_definition[0]["k"]
     algo = keys_definition[0]["alg"]
@@ -42,18 +59,28 @@ def signed_token():
     return signed_token
 
 
-@patch(
-    "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
-    return_value=jwks_fake_data(),
+@pytest.mark.parametrize(
+    "jwks_data_provider",
+    [
+        jwks_fake_data,
+        jwks_fake_data_no_alg,
+    ],
 )
-def test_simple_validate(data_mock, signed_token):
+def test_simple_validate(
+    monkeypatch: pytest.MonkeyPatch,
+    signed_token: str,
+    jwks_data_provider: Callable[[], JWKSData],
+):
+    monkeypatch.setattr(
+        "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
+        lambda _: jwks_data_provider(),
+    )
     validator = JWKSValidator[FakeToken](
         decode_config=JWTDecodeConfig(),
         jwks_config=JWKSConfig(url="https://my-fake-jwks-endpoint/my-endpoint"),
     )
 
     fake_user = validator.validate_token(signed_token)
-
     assert isinstance(fake_user, FakeToken)
 
 
