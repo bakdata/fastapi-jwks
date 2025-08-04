@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fastapi-jwks"
-version = "0.4.0"
+version = "1.0.0"
 description = "A library designed to facilitate the integration of JSON Web Key Set (JWKS) with FastAPI applications"
 license = "MIT"
 authors = ["bakdata"]

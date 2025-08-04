@@ -1,4 +1,17 @@
 # Changelog
+## [1.0.0](https://github.com/bakdata/fastapi-jwks/releases/tag/1.0.0) - Release Date: [2025-08-04]
+
+#### Merged pull requests:
+
+- feat: support JWKS keys without `alg` set [#123](https://github.com/bakdata/fastapi-jwks/pull/123) ([@miyoyo](https://github.com/miyoyo))
+
+- refactor: add models to improve type safety [#140](https://github.com/bakdata/fastapi-jwks/pull/140) ([@disrupted](https://github.com/disrupted))
+
+- test: add jwks model test [#141](https://github.com/bakdata/fastapi-jwks/pull/141) ([@torbsto](https://github.com/torbsto))
+
+
+
+
 ## [0.4.0](https://github.com/bakdata/fastapi-jwks/releases/tag/0.4.0) - Release Date: [2025-03-19]
 
 #### Merged pull requests:
