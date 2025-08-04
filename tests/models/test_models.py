@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 import pytest
@@ -20,7 +19,6 @@ RESOURCE_PATH = Path(__file__).parent / "resources"
 )
 def test_jwks_model(provider: str):
     """Test the JWKS model supports different providers"""
-    with open(RESOURCE_PATH / f"{provider}.json") as file:
-        jwks = json.loads(file.read())
-    validate = JWKS.model_validate(jwks)
+    jwks = (RESOURCE_PATH / f"{provider}.json").read_text()
+    validate = JWKS.model_validate_json(jwks)
     assert len(validate.keys) > 0
