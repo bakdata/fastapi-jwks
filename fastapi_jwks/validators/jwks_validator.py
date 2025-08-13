@@ -75,7 +75,7 @@ class JWKSValidator(Generic[DataT]):
                 if key.kid == header.kid:
                     public_key = algorithms.get_default_algorithms()[
                         header.alg
-                    ].from_jwk(key.model_dump())
+                    ].from_jwk(key.model_dump(exclude_none=True))
                     break
             if public_key is None:
                 logger.debug(
