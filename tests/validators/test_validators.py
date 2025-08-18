@@ -1,6 +1,8 @@
 import base64
+import datetime
 import tempfile
 from collections.abc import Callable
+from datetime import timezone
 from unittest.mock import MagicMock, patch
 
 import jwt
@@ -54,7 +56,10 @@ def signed_token() -> str:
     algo = jwk.alg
     kid = jwk.kid
 
-    claim = {"user": "my-fake-user"}
+    claim = {
+        "user": "my-fake-user",
+        "iat": datetime.datetime.now(timezone.utc).timestamp(),
+    }
     signed_token = jwt.encode(
         claim, base64.urlsafe_b64decode(key), headers={"kid": kid}, algorithm=algo
     )
