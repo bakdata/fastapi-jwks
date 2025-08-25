@@ -1,4 +1,21 @@
 # Changelog
+## [1.0.1](https://github.com/bakdata/fastapi-jwks/releases/tag/1.0.1) - Release Date: [2025-08-25]
+
+#### Merged pull requests:
+
+- Fixes: Modeldump of key model including the not set fields leads to failures in PyJWT [#142](https://github.com/bakdata/fastapi-jwks/pull/142) ([@f-str](https://github.com/f-str))
+
+- fix: Use default of 0 for leeway [#144](https://github.com/bakdata/fastapi-jwks/pull/144) ([@torbsto](https://github.com/torbsto))
+
+- test: add validation test for RSA key [#145](https://github.com/bakdata/fastapi-jwks/pull/145) ([@torbsto](https://github.com/torbsto))
+
+- refactor: Update dependabot config [#146](https://github.com/bakdata/fastapi-jwks/pull/146) ([@torbsto](https://github.com/torbsto))
+
+- Bump ruff from 0.11.0 to 0.12.10 [#139](https://github.com/bakdata/fastapi-jwks/pull/139) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+
+
+
 ## [1.0.0](https://github.com/bakdata/fastapi-jwks/releases/tag/1.0.0) - Release Date: [2025-08-04]
 
 #### Merged pull requests:
