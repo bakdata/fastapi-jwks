@@ -1,14 +1,39 @@
 version: 2
-updates:
-  # Maintain dependencies for GitHub Actions
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
 
-  # Maintain dependencies for Poetry
+updates:
   - package-ecosystem: "pip"
     directory: "/"
     versioning-strategy: increase-if-necessary
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: chore
+      include: scope
+    # Group by dependency type. Only group minor and patch updates. Open separate PRs for major updates.
+    groups:
+      main-deps:
+        dependency-type: "production"
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      dev-deps:
+        dependency-type: "development"
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
