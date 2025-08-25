@@ -5,9 +5,11 @@ from pydantic import AnyUrl, BaseModel, ConfigDict, Field
 
 
 class JWTDecodeConfig(BaseModel):
+    """Options passed to pyjwt's jwt.decode()"""
+
     audience: list[str] | None = None
     issuer: str | None = None
-    leeway: float | timedelta | None = None
+    leeway: float | timedelta = 0
     options: dict[str, Any] | None = None
     verify: bool | None = None
 
