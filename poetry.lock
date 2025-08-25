@@ -1096,14 +1096,14 @@ files = [
 
 [[package]]
 name = "types-cachetools"
-version = "5.5.0.20240820"
+version = "6.1.0.20250717"
 description = "Typing stubs for cachetools"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "types-cachetools-5.5.0.20240820.tar.gz", hash = "sha256:b888ab5c1a48116f7799cd5004b18474cd82b5463acb5ffb2db2fc9c7b053bc0"},
-    {file = "types_cachetools-5.5.0.20240820-py3-none-any.whl", hash = "sha256:efb2ed8bf27a4b9d3ed70d33849f536362603a90b8090a328acf0cd42fda82e2"},
+    {file = "types_cachetools-6.1.0.20250717-py3-none-any.whl", hash = "sha256:bba4b8d42262460d24e570097d2d9040e60311934603caa642efd971f3658ed0"},
+    {file = "types_cachetools-6.1.0.20250717.tar.gz", hash = "sha256:4acc8e25de9f5f84dd176ea81dcffa7cb24393869bb2e59e692dfd0139a1e66f"},
 ]
 
 [[package]]
@@ -1142,4 +1142,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "0f9fdfe143a1e0d59f7e5bc316f312577a813c0b2ed7ba5aa7d630ec7f95d408"
+content-hash = "caac350d5a0ced43e2ad2741344ec0d1a4e155f8ab3a120a73bd0e35f60705da"
