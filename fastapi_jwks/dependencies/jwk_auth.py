@@ -1,4 +1,5 @@
-from typing import final, override
+import sys
+from typing import final
 
 from fastapi import HTTPException, Request, status
 from fastapi.security import (
@@ -8,6 +9,11 @@ from fastapi.security.http import HTTPBase
 
 from fastapi_jwks.models.types import JWKSAuthConfig
 from fastapi_jwks.validators import JWKSValidator
+
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override  # pyright: ignore[reportUnreachable]
 
 UNAUTHORIZED_ERROR = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
