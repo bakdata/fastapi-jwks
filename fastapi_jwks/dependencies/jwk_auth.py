@@ -1,9 +1,10 @@
-from typing import final
+from typing import final, override
 
 from fastapi import HTTPException, Request, status
 from fastapi.security import (
     HTTPAuthorizationCredentials,
 )
+from fastapi.security.http import HTTPBase
 
 from fastapi_jwks.models.types import JWKSAuthConfig
 from fastapi_jwks.validators import JWKSValidator
@@ -15,23 +16,23 @@ UNAUTHORIZED_ERROR = HTTPException(
 
 
 @final
-class JWKSAuth:
+class JWKSAuth(HTTPBase):
     def __init__(
         self,
         jwks_validator: JWKSValidator,
         config: JWKSAuthConfig | None = None,
         auth_header: str = "Authorization",
         auth_scheme: str = "Bearer",
-        exclude_paths: list[str] | None = None,
     ):
         self.config = config or JWKSAuthConfig()
         self.jwks_validator = jwks_validator
         self.auth_header = auth_header
-        self.auth_scheme = auth_scheme
-        self.exclude_paths = [] if exclude_paths is None else exclude_paths
+        self.auth_scheme = auth_scheme.lower()
+        super().__init__(scheme=self.auth_scheme, auto_error=False)
 
-    async def __call__(self, request: Request):
-        authorization: str | None = request.headers.get(self.auth_header)
+    @override
+    async def __call__(self, request: Request) -> HTTPAuthorizationCredentials:
+        authorization = request.headers.get(self.auth_header)
         if not authorization:
             raise UNAUTHORIZED_ERROR
 

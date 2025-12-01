@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import jwt
 import pytest
-from fastapi import FastAPI, Security
+from fastapi import FastAPI, Security, status
 from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.testclient import TestClient
@@ -44,7 +44,7 @@ def jwks_fake_data() -> JWKS:
 
 
 @pytest.fixture()
-def app(jwks_fake_data: JWKS) -> Generator[FastAPI]:
+def jwks_auth(jwks_fake_data: JWKS) -> Generator[JWKSAuth]:
     jwks_verifier = JWKSValidator[FakeToken](
         decode_config=JWTDecodeConfig(),
         jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
@@ -54,20 +54,32 @@ def app(jwks_fake_data: JWKS) -> Generator[FastAPI]:
         return_value=jwks_fake_data,
     )
     mocked_jwt.start()
-    jwks_auth = JWKSAuth(jwks_validator=jwks_verifier)
+    yield JWKSAuth(jwks_validator=jwks_verifier)
+    mocked_jwt.stop()
+
+
+@pytest.fixture()
+def app(jwks_auth: JWKSAuth) -> FastAPI:
     test_app = FastAPI(dependencies=[Security(jwks_auth)])
 
     @test_app.get("/test-endpoint", response_model=FakeToken)
     def get_test_route(request: Request):
         return request.state.payload
 
-    yield test_app
-    mocked_jwt.stop()
+    return test_app
 
 
 @pytest.fixture()
 def client(app: FastAPI) -> TestClient:
     return TestClient(app)
+
+
+def test_openapi_security_schema(app: FastAPI):
+    openapi = app.openapi()
+    assert openapi["components"]["securitySchemes"] == {
+        "JWKSAuth": {"scheme": "bearer", "type": "http"}
+    }
+    assert openapi["paths"]["/test-endpoint"]["get"]["security"] == [{"JWKSAuth": []}]
 
 
 def test_simple_example(client: TestClient, jwks_fake_data: JWKS):
@@ -86,9 +98,8 @@ def test_simple_example(client: TestClient, jwks_fake_data: JWKS):
         "/test-endpoint", headers={"Authorization": f"Bearer {signed_token}"}
     )
     data = response.json()
-
+    assert response.status_code == status.HTTP_200_OK
     assert data["user"] == claim["user"]
-    assert response.status_code == 200
 
 
 def test_custom_auth_header_and_scheme(jwks_fake_data: JWKS):
@@ -132,7 +143,7 @@ def test_custom_auth_header_and_scheme(jwks_fake_data: JWKS):
     data = response.json()
 
     assert data["user"] == claim["user"]
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     mocked_jwt.stop()
 
 
@@ -151,13 +162,13 @@ def test_invalid_auth_scheme(client, jwks_fake_data: JWKS):
     response = client.get(
         "/test-endpoint", headers={"Authorization": f"Invalid {signed_token}"}
     )
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert response.json()["detail"] == "Invalid authorization token"
 
 
 def test_missing_auth_header(client):
     response = client.get("/test-endpoint")
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert response.json()["detail"] == "Invalid authorization token"
 
 
@@ -211,7 +222,7 @@ def test_custom_ca_cert(jwks_fake_data: JWKS):
             data = response.json()
 
             assert data["user"] == claim["user"]
-            assert response.status_code == 200
+            assert response.status_code == status.HTTP_200_OK
             mock_client.assert_called_once_with(verify=ca_cert_file.name)
             mock_client.return_value.get.assert_called_once_with(
                 "http://my-fake-jwks-url/my-fake-endpoint"
@@ -248,7 +259,7 @@ def test_custom_state_fields(jwks_fake_data: JWKS):
 
     # Test without token
     response = client.get("/test-endpoint")
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert response.json()["detail"] == "Invalid authorization token"
 
     # Test with token
@@ -270,7 +281,7 @@ def test_custom_state_fields(jwks_fake_data: JWKS):
 
     assert data["custom_payload"]["user"] == claim["user"]
     assert data["custom_token"] == signed_token
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     mocked_jwt.stop()
 
 
@@ -310,7 +321,7 @@ async def test_token_injector_with_custom_fields(jwks_fake_data: JWKS):
 
     # Test without token
     response = client.get("/test-endpoint")
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert response.json()["detail"] == "Invalid authorization token"
 
     # Test with token
@@ -332,5 +343,5 @@ async def test_token_injector_with_custom_fields(jwks_fake_data: JWKS):
 
     assert data["injected_payload"]["user"] == claim["user"]
     assert data["injected_token"] == signed_token
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     mocked_jwt.stop()
