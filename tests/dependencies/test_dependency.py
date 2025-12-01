@@ -1,20 +1,21 @@
 import base64
 import tempfile
+from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 import jwt
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Security
 from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.testclient import TestClient
 
+from fastapi_jwks.dependencies.jwk_auth import JWKSAuth
 from fastapi_jwks.injector.payload_injector import JWTRawTokenInjector, JWTTokenInjector
-from fastapi_jwks.middlewares.jwk_auth import JWKSAuthMiddleware
 from fastapi_jwks.models.types import (
     JWKS,
+    JWKSAuthConfig,
     JWKSConfig,
-    JWKSMiddlewareConfig,
     JWTDecodeConfig,
     JWTTokenInjectorConfig,
 )
@@ -43,13 +44,7 @@ def jwks_fake_data() -> JWKS:
 
 
 @pytest.fixture()
-def app(jwks_fake_data: JWKS):
-    test_app = FastAPI()
-
-    @test_app.get("/test-endpoint", response_model=FakeToken)
-    def get_test_route(request: Request):
-        return request.state.payload
-
+def app(jwks_fake_data: JWKS) -> Generator[FastAPI]:
     jwks_verifier = JWKSValidator[FakeToken](
         decode_config=JWTDecodeConfig(),
         jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
@@ -59,7 +54,13 @@ def app(jwks_fake_data: JWKS):
         return_value=jwks_fake_data,
     )
     mocked_jwt.start()
-    test_app.add_middleware(JWKSAuthMiddleware, jwks_validator=jwks_verifier)
+    jwks_auth = JWKSAuth(jwks_validator=jwks_verifier)
+    test_app = FastAPI(dependencies=[Security(jwks_auth)])
+
+    @test_app.get("/test-endpoint", response_model=FakeToken)
+    def get_test_route(request: Request):
+        return request.state.payload
+
     yield test_app
     mocked_jwt.stop()
 
@@ -91,12 +92,6 @@ def test_simple_example(client: TestClient, jwks_fake_data: JWKS):
 
 
 def test_custom_auth_header_and_scheme(jwks_fake_data: JWKS):
-    test_app = FastAPI()
-
-    @test_app.get("/test-endpoint", response_model=FakeToken)
-    def get_test_route(request: Request):
-        return request.state.payload
-
     jwks_verifier = JWKSValidator[FakeToken](
         decode_config=JWTDecodeConfig(),
         jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
@@ -106,12 +101,17 @@ def test_custom_auth_header_and_scheme(jwks_fake_data: JWKS):
         return_value=jwks_fake_data,
     )
     mocked_jwt.start()
-    test_app.add_middleware(
-        JWKSAuthMiddleware,
+    jwks_auth = JWKSAuth(
         jwks_validator=jwks_verifier,
         auth_header="X-Custom-Auth",
         auth_scheme="Token",
     )
+
+    test_app = FastAPI(dependencies=[Security(jwks_auth)])
+
+    @test_app.get("/test-endpoint", response_model=FakeToken)
+    def get_test_route(request: Request):
+        return request.state.payload
 
     client = TestClient(test_app)
 
@@ -162,12 +162,6 @@ def test_missing_auth_header(client):
 
 
 def test_custom_ca_cert(jwks_fake_data: JWKS):
-    test_app = FastAPI()
-
-    @test_app.get("/test-endpoint", response_model=FakeToken)
-    def get_test_route(request: Request):
-        return request.state.payload
-
     with tempfile.NamedTemporaryFile(mode="w", suffix=".pem") as ca_cert_file:
         ca_cert_file.write(
             "-----BEGIN CERTIFICATE-----\nMIID...\n-----END CERTIFICATE-----\n"
@@ -188,7 +182,13 @@ def test_custom_ca_cert(jwks_fake_data: JWKS):
                 ),
             )
 
-            test_app.add_middleware(JWKSAuthMiddleware, jwks_validator=jwks_verifier)
+            jwks_auth = JWKSAuth(jwks_validator=jwks_verifier)
+            test_app = FastAPI(dependencies=[Security(jwks_auth)])
+
+            @test_app.get("/test-endpoint", response_model=FakeToken)
+            def get_test_route(request: Request):
+                return request.state.payload
+
             client = TestClient(test_app)
 
             jwk = jwks_fake_data.keys[0]
@@ -218,17 +218,7 @@ def test_custom_ca_cert(jwks_fake_data: JWKS):
             )
 
 
-def test_excluded_path(jwks_fake_data: JWKS):
-    test_app = FastAPI()
-
-    @test_app.get("/public", response_model=dict)
-    def public_route():
-        return {"message": "This is a public route"}
-
-    @test_app.get("/protected", response_model=FakeToken)
-    def protected_route(request: Request):
-        return request.state.payload
-
+def test_custom_state_fields(jwks_fake_data: JWKS):
     jwks_verifier = JWKSValidator[FakeToken](
         decode_config=JWTDecodeConfig(),
         jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
@@ -238,47 +228,14 @@ def test_excluded_path(jwks_fake_data: JWKS):
         return_value=jwks_fake_data,
     )
     mocked_jwt.start()
-    test_app.add_middleware(
-        JWKSAuthMiddleware, jwks_validator=jwks_verifier, exclude_paths=["/public"]
+
+    jwks_auth = JWKSAuth(
+        jwks_validator=jwks_verifier,
+        config=JWKSAuthConfig(
+            payload_field="custom_payload", token_field="custom_token"
+        ),
     )
-
-    client = TestClient(test_app)
-
-    # Test public route
-    response = client.get("/public")
-    assert response.status_code == 200
-    assert response.json() == {"message": "This is a public route"}
-
-    # Test protected route without token
-    response = client.get("/protected")
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid authorization token"
-
-    # Test protected route with token
-    jwk = jwks_fake_data.keys[0]
-    key = jwk.k
-    assert key
-    algo = jwk.alg
-    kid = jwk.kid
-
-    claim = {"user": "my-fake-user"}
-    signed_token = jwt.encode(
-        claim, base64.urlsafe_b64decode(key), headers={"kid": kid}, algorithm=algo
-    )
-
-    response = client.get(
-        "/protected", headers={"Authorization": f"Bearer {signed_token}"}
-    )
-    data = response.json()
-
-    assert data["user"] == claim["user"]
-    assert response.status_code == 200
-
-    mocked_jwt.stop()
-
-
-def test_custom_state_fields(jwks_fake_data: JWKS):
-    test_app = FastAPI()
+    test_app = FastAPI(dependencies=[Security(jwks_auth)])
 
     @test_app.get("/test-endpoint", response_model=dict)
     def get_test_route(request: Request):
@@ -286,24 +243,6 @@ def test_custom_state_fields(jwks_fake_data: JWKS):
             "custom_payload": request.state.custom_payload.model_dump(),
             "custom_token": request.state.custom_token,
         }
-
-    jwks_verifier = JWKSValidator[FakeToken](
-        decode_config=JWTDecodeConfig(),
-        jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
-    )
-    mocked_jwt = patch(
-        "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
-        return_value=jwks_fake_data,
-    )
-    mocked_jwt.start()
-
-    test_app.add_middleware(
-        JWKSAuthMiddleware,
-        jwks_validator=jwks_verifier,
-        config=JWKSMiddlewareConfig(
-            payload_field="custom_payload", token_field="custom_token"
-        ),
-    )
 
     client = TestClient(test_app)
 
@@ -337,7 +276,23 @@ def test_custom_state_fields(jwks_fake_data: JWKS):
 
 @pytest.mark.asyncio()
 async def test_token_injector_with_custom_fields(jwks_fake_data: JWKS):
-    test_app = FastAPI()
+    jwks_verifier = JWKSValidator[FakeToken](
+        decode_config=JWTDecodeConfig(),
+        jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
+    )
+    mocked_jwt = patch(
+        "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
+        return_value=jwks_fake_data,
+    )
+    mocked_jwt.start()
+
+    jwks_auth = JWKSAuth(
+        jwks_validator=jwks_verifier,
+        config=JWKSAuthConfig(
+            payload_field="custom_payload", token_field="custom_token"
+        ),
+    )
+    test_app = FastAPI(dependencies=[Security(jwks_auth)])
 
     @test_app.get("/test-endpoint", response_model=dict)
     async def get_test_route(request: Request):
@@ -350,24 +305,6 @@ async def test_token_injector_with_custom_fields(jwks_fake_data: JWKS):
         payload = await payload_injector(request)
         token = await token_injector(request)
         return {"injected_payload": payload.model_dump(), "injected_token": token}
-
-    jwks_verifier = JWKSValidator[FakeToken](
-        decode_config=JWTDecodeConfig(),
-        jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
-    )
-    mocked_jwt = patch(
-        "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
-        return_value=jwks_fake_data,
-    )
-    mocked_jwt.start()
-
-    test_app.add_middleware(
-        JWKSAuthMiddleware,
-        jwks_validator=jwks_verifier,
-        config=JWKSMiddlewareConfig(
-            payload_field="custom_payload", token_field="custom_token"
-        ),
-    )
 
     client = TestClient(test_app)
 

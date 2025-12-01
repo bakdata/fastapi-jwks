@@ -14,7 +14,7 @@ class JWTDecodeConfig(BaseModel):
     verify: bool | None = None
 
 
-class JWKSMiddlewareConfig(BaseModel):
+class JWKSAuthConfig(BaseModel):
     payload_field: str = "payload"
     token_field: str = "raw_token"
 
