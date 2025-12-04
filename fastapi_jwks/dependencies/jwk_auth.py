@@ -29,12 +29,15 @@ class JWKSAuth(HTTPBase):
         config: JWKSAuthConfig | None = None,
         auth_header: str = "Authorization",
         auth_scheme: str = "Bearer",
+        scheme_name: str | None = None,
     ):
         self.config = config or JWKSAuthConfig()
         self.jwks_validator = jwks_validator
         self.auth_header = auth_header
         self.auth_scheme = auth_scheme.lower()
-        super().__init__(scheme=self.auth_scheme, auto_error=False)
+        super().__init__(
+            scheme=self.auth_scheme, scheme_name=scheme_name, auto_error=False
+        )
 
     @override
     async def __call__(self, request: Request) -> HTTPAuthorizationCredentials:

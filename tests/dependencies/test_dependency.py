@@ -54,7 +54,7 @@ def jwks_auth(jwks_fake_data: JWKS) -> Generator[JWKSAuth]:
         return_value=jwks_fake_data,
     )
     mocked_jwt.start()
-    yield JWKSAuth(jwks_validator=jwks_verifier)
+    yield JWKSAuth(jwks_validator=jwks_verifier, scheme_name="AuthToken")
     mocked_jwt.stop()
 
 
@@ -77,9 +77,9 @@ def client(app: FastAPI) -> TestClient:
 def test_openapi_security_schema(app: FastAPI):
     openapi = app.openapi()
     assert openapi["components"]["securitySchemes"] == {
-        "JWKSAuth": {"scheme": "bearer", "type": "http"}
+        "AuthToken": {"scheme": "bearer", "type": "http"}
     }
-    assert openapi["paths"]["/test-endpoint"]["get"]["security"] == [{"JWKSAuth": []}]
+    assert openapi["paths"]["/test-endpoint"]["get"]["security"] == [{"AuthToken": []}]
 
 
 def test_simple_example(client: TestClient, jwks_fake_data: JWKS):
