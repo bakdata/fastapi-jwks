@@ -1,6 +1,7 @@
 from datetime import timedelta
 from typing import Annotated, Any, ClassVar
 
+from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field
 
 
@@ -27,6 +28,10 @@ class JWKSConfig(BaseModel):
 class JWTTokenInjectorConfig(BaseModel):
     payload_field: str = "payload"
     token_field: str = "raw_token"
+
+
+class JWKSAuthCredentials[DataT: BaseModel](HTTPAuthorizationCredentials):
+    payload: DataT
 
 
 class JWTHeader(BaseModel):

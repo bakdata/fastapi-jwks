@@ -1,6 +1,7 @@
 import base64
 import tempfile
 from collections.abc import Generator
+from typing import Annotated
 from unittest.mock import MagicMock, patch
 
 import jwt
@@ -15,6 +16,7 @@ from fastapi_jwks.injector.payload_injector import JWTRawTokenInjector, JWTToken
 from fastapi_jwks.models.types import (
     JWKS,
     JWKSAuthConfig,
+    JWKSAuthCredentials,
     JWKSConfig,
     JWTDecodeConfig,
     JWTTokenInjectorConfig,
@@ -44,7 +46,7 @@ def jwks_fake_data() -> JWKS:
 
 
 @pytest.fixture()
-def jwks_auth(jwks_fake_data: JWKS) -> Generator[JWKSAuth]:
+def jwks_auth(jwks_fake_data: JWKS) -> Generator[JWKSAuth[FakeToken]]:
     jwks_verifier = JWKSValidator[FakeToken](
         decode_config=JWTDecodeConfig(),
         jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
@@ -82,7 +84,8 @@ def test_openapi_security_schema(app: FastAPI):
     assert openapi["paths"]["/test-endpoint"]["get"]["security"] == [{"AuthToken": []}]
 
 
-def test_simple_example(client: TestClient, jwks_fake_data: JWKS):
+@pytest.fixture()
+def signed_token(jwks_fake_data: JWKS) -> str:
     jwk = jwks_fake_data.keys[0]
     key = jwk.k
     assert key
@@ -93,13 +96,34 @@ def test_simple_example(client: TestClient, jwks_fake_data: JWKS):
     signed_token = jwt.encode(
         claim, base64.urlsafe_b64decode(key), headers={"kid": kid}, algorithm=algo
     )
+    return signed_token
 
+
+def test_simple_example(client: TestClient, signed_token: str):
     response = client.get(
         "/test-endpoint", headers={"Authorization": f"Bearer {signed_token}"}
     )
-    data = response.json()
     assert response.status_code == status.HTTP_200_OK
-    assert data["user"] == claim["user"]
+    data = response.json()
+    assert data["user"] == "my-fake-user"
+
+
+def test_dependency_return_type(jwks_auth: JWKSAuth[FakeToken], signed_token: str):
+    test_app = FastAPI()
+
+    @test_app.get("/test-endpoint")
+    def get_test_route(
+        credentials: Annotated[JWKSAuthCredentials[FakeToken], Security(jwks_auth)],
+    ) -> FakeToken:
+        return credentials.payload
+
+    client = TestClient(test_app)
+    response = client.get(
+        "/test-endpoint", headers={"Authorization": f"Bearer {signed_token}"}
+    )
+    assert response.is_success
+    data = response.json()
+    assert FakeToken.model_validate(data).user == "my-fake-user"
 
 
 def test_custom_auth_header_and_scheme(jwks_fake_data: JWKS):

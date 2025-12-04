@@ -1,19 +1,11 @@
-import sys
-from typing import final
+from typing import final, override
 
 from fastapi import HTTPException, Request, status
-from fastapi.security import (
-    HTTPAuthorizationCredentials,
-)
 from fastapi.security.http import HTTPBase
+from pydantic import BaseModel
 
-from fastapi_jwks.models.types import JWKSAuthConfig
+from fastapi_jwks.models.types import JWKSAuthConfig, JWKSAuthCredentials
 from fastapi_jwks.validators import JWKSValidator
-
-if sys.version_info >= (3, 12):
-    from typing import override
-else:
-    from typing_extensions import override  # pyright: ignore[reportUnreachable]
 
 UNAUTHORIZED_ERROR = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -22,10 +14,10 @@ UNAUTHORIZED_ERROR = HTTPException(
 
 
 @final
-class JWKSAuth(HTTPBase):
+class JWKSAuth[DataT: BaseModel](HTTPBase):
     def __init__(
         self,
-        jwks_validator: JWKSValidator,
+        jwks_validator: JWKSValidator[DataT],
         config: JWKSAuthConfig | None = None,
         auth_header: str = "Authorization",
         auth_scheme: str = "Bearer",
@@ -40,7 +32,7 @@ class JWKSAuth(HTTPBase):
         )
 
     @override
-    async def __call__(self, request: Request) -> HTTPAuthorizationCredentials:
+    async def __call__(self, request: Request) -> JWKSAuthCredentials[DataT]:
         authorization = request.headers.get(self.auth_header)
         if not authorization:
             raise UNAUTHORIZED_ERROR
@@ -59,4 +51,6 @@ class JWKSAuth(HTTPBase):
         except Exception as e:
             raise UNAUTHORIZED_ERROR from e
 
-        return HTTPAuthorizationCredentials(scheme=scheme, credentials=token)
+        return JWKSAuthCredentials[DataT](
+            scheme=scheme, credentials=token, payload=payload
+        )
