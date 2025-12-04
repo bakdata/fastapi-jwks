@@ -6,7 +6,7 @@ fastapi-jwks is a Python library designed to facilitate the integration of JSON 
 
 - **JWKS Endpoint Querying**: The library automatically queries the JWKS endpoint to fetch the necessary keys for token verification.
 - **Token Verification**: It verifies the tokens sent over a request with the JWKS endpoint, ensuring the authenticity and integrity of the data.
-- **Middleware Integration**: The library includes a middleware that can be easily integrated into your FastAPI application to handle token validation on every request.
+- **Dependency Integration**: The library includes a dependency that can be easily integrated into your FastAPI application to handle token validation on every request.
 - **Pydantic Model Support**: It supports Pydantic models for token data extraction, providing a seamless way to work with the token data.
 - **Customizable State Fields**: You can customize where the payload and raw token are stored in the request state.
 - **Raw Token Access**: Access both the decoded payload and the original raw token through dependency injection.
@@ -21,11 +21,11 @@ pip install fastapi_jwks
 
 ```python
 from fastapi import FastAPI
-from fastapi import Depends
+from fastapi import Depends, Security
 from pydantic import BaseModel
 from fastapi_jwks.injector import JWTTokenInjector
-from fastapi_jwks.middlewares.jwk_auth import JWKSAuthMiddleware
-from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig
+from fastapi_jwks.dependencies.jwk_auth import JWKSAuth
+from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig, JWKSAuthCredentials
 from fastapi_jwks.validators import JWKSValidator
 
 # The data we want to extract from the token
@@ -45,8 +45,18 @@ jwks_verifier = JWKSValidator[FakeToken](
     decode_config=JWTDecodeConfig(),
     jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
 )
+jwks_auth = JWKSAuth(jwks_validator=jwks_verifier)
 
-app.add_middleware(JWKSAuthMiddleware, jwks_validator=jwks_verifier)
+# global: protect all endpoints
+app = FastAPI(dependencies=[Security(jwks_auth)])
+
+# specific API router
+app.include_router(APIRouter(dependencies=[Security(jwks_auth)]))
+
+# specific route
+@app.get("/test")
+def get_test_route(credentials: Annotated[JWKSAuthCredentials[FakeToken], Security(jwks_auth)]):
+    ...
 ```
 
 ## Advanced Usage
@@ -56,20 +66,16 @@ app.add_middleware(JWKSAuthMiddleware, jwks_validator=jwks_verifier)
 You can customize where the payload and raw token are stored in the request state:
 
 ```python
-from fastapi_jwks.models.types import JWKSMiddlewareConfig, JWTTokenInjectorConfig
+from fastapi_jwks.models.types import JWKSAuthConfig, JWTTokenInjectorConfig
 from fastapi_jwks.injector import JWTTokenInjector, JWTRawTokenInjector
 
-# Configure middleware with custom field names
-middleware_config = JWKSMiddlewareConfig(
+# Configure depdency with custom field names
+auth_config = JWKSAuthConfig(
     payload_field="custom_payload",
     token_field="custom_token"
 )
-
-app.add_middleware(
-    JWKSAuthMiddleware,
-    jwks_validator=jwks_verifier,
-    config=middleware_config
-)
+jwks_auth = JWKSAuth(jwks_validator=jwks_verifier, config=auth_config)
+app = FastAPI(dependencies=[Security(jwks_auth)])
 
 # Configure injectors to use the custom fields
 payload_injector = JWTTokenInjector[FakeToken](
@@ -92,19 +98,18 @@ def advanced_endpoint(
 
 ### Additional Configuration
 
-The middleware also supports:
+The dependency also supports:
+
 - Custom authorization header name (`auth_header`)
 - Custom authorization scheme (`auth_scheme`)
-- Path exclusion (`exclude_paths`)
 
 ```python
-app.add_middleware(
-    JWKSAuthMiddleware,
-    jwks_validator=jwks_verifier,
-    auth_header="X-Custom-Auth",
-    auth_scheme="Token",
-    exclude_paths=["/public", "/health"]
+jwks_auth = JWKSAuth(
+    jwks_validator=jwks_verifier, 
+    auth_header="X-Custom-Auth", 
+    auth_scheme="Token"
 )
+app = FastAPI(dependencies=[Security(jwks_auth)])
 ```
 
 ## Contributing

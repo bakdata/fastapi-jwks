@@ -1,6 +1,6 @@
 import logging
 from functools import cached_property
-from typing import Any, Generic, TypeVar, final
+from typing import Any, final
 
 import httpx
 import jwt
@@ -15,11 +15,8 @@ from fastapi_jwks.models.types import JWKS, JWKSConfig, JWTDecodeConfig, JWTHead
 logger = logging.getLogger("fastapi-jwks")
 
 
-DataT = TypeVar("DataT", bound=BaseModel)
-
-
 @final
-class JWKSValidator(Generic[DataT]):
+class JWKSValidator[DataT: BaseModel]:
     def __init__(self, decode_config: JWTDecodeConfig, jwks_config: JWKSConfig):
         self.decode_config = decode_config
         self.jwks_config = jwks_config
