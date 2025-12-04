@@ -2,7 +2,6 @@ import base64
 import dataclasses
 import datetime
 import tempfile
-from datetime import timezone
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -34,7 +33,7 @@ class JwksToken:
 def create_signed_jwt(key: str | bytes, alg: str | None = None) -> str:
     claim = {
         "user": "my-fake-user",
-        "iat": datetime.datetime.now(timezone.utc).timestamp(),
+        "iat": datetime.datetime.now(datetime.UTC).timestamp(),
     }
     return jwt.encode(claim, key, headers={"kid": KID}, algorithm=alg)
 
