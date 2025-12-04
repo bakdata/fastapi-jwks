@@ -1,4 +1,23 @@
 # Changelog
+## [2.0.0](https://github.com/bakdata/fastapi-jwks/releases/tag/2.0.0) - Release Date: [2025-12-04]
+
+#### Merged pull requests:
+
+- chore(deps-dev): bump the dev-deps group with 5 updates [#148](https://github.com/bakdata/fastapi-jwks/pull/148) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- chore(deps-dev): bump pytest-asyncio from 0.25.3 to 1.1.0 [#150](https://github.com/bakdata/fastapi-jwks/pull/150) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- chore(deps-dev): bump the dev-deps group with 5 updates [#154](https://github.com/bakdata/fastapi-jwks/pull/154) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- chore(deps-dev): bump the dev-deps group with 2 updates [#155](https://github.com/bakdata/fastapi-jwks/pull/155) ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+- chore: remove upper bound from Python version specifier [#161](https://github.com/bakdata/fastapi-jwks/pull/161) ([@sisp](https://github.com/sisp))
+
+- refactor!: rewrite as dependency and add security info to OpenAPI schema [#163](https://github.com/bakdata/fastapi-jwks/pull/163) ([@disrupted](https://github.com/disrupted))
+
+
+
+
 ## [1.0.1](https://github.com/bakdata/fastapi-jwks/releases/tag/1.0.1) - Release Date: [2025-08-25]
 
 #### Merged pull requests:
