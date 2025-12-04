@@ -25,7 +25,7 @@ from fastapi import Depends, Security
 from pydantic import BaseModel
 from fastapi_jwks.injector import JWTTokenInjector
 from fastapi_jwks.dependencies.jwk_auth import JWKSAuth
-from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig
+from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig, JWKSAuthCredentials
 from fastapi_jwks.validators import JWKSValidator
 
 # The data we want to extract from the token
@@ -55,7 +55,7 @@ app.include_router(APIRouter(dependencies=[Security(jwks_auth)]))
 
 # specific route
 @app.get("/test")
-def get_test_route(credentials: Annotated[HTTPAuthorizationCredentials, Security(jwks_auth)]):
+def get_test_route(credentials: Annotated[JWKSAuthCredentials[FakeToken], Security(jwks_auth)]):
     ...
 ```
 
