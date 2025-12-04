@@ -38,7 +38,7 @@ class JWKSAuth[DataT: BaseModel](HTTPBase):
             raise UNAUTHORIZED_ERROR
 
         try:
-            scheme, token = authorization.split()
+            scheme, _, token = authorization.partition(" ")
             if scheme.lower() != self.auth_scheme:
                 raise UNAUTHORIZED_ERROR
         except ValueError as e:
