@@ -1,4 +1,13 @@
 # Changelog
+## [2.0.1](https://github.com/bakdata/fastapi-jwks/releases/tag/2.0.1) - Release Date: [2026-01-21]
+
+#### Merged pull requests:
+
+- chore: remove upper constraint for dependencies [#168](https://github.com/bakdata/fastapi-jwks/pull/168) ([@disrupted](https://github.com/disrupted))
+
+
+
+
 ## [2.0.0](https://github.com/bakdata/fastapi-jwks/releases/tag/2.0.0) - Release Date: [2025-12-04]
 
 #### Merged pull requests:
