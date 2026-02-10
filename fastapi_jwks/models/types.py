@@ -2,6 +2,7 @@ from datetime import timedelta
 from typing import Annotated, Any, ClassVar
 
 from fastapi.security import HTTPAuthorizationCredentials
+from jwt import algorithms
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field
 
 
@@ -111,3 +112,10 @@ class JWKS(BaseModel):
     @property
     def algorithms(self) -> list[str]:
         return [key.alg for key in self.keys if key.alg is not None]
+
+    def get_public_key(self, header: JWTHeader) -> bytes | None:
+        for key in self.keys:
+            if key.kid == header.kid:
+                return algorithms.get_default_algorithms()[header.alg].from_jwk(
+                    key.model_dump(exclude_none=True)
+                )

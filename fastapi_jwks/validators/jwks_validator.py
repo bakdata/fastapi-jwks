@@ -5,9 +5,8 @@ from typing import Any, final
 import httpx
 import jwt
 import pydantic
-from cachetools import TTLCache, cached
+from cachetools import TTLCache
 from fastapi import HTTPException, status
-from jwt import algorithms
 from pydantic import BaseModel
 
 from fastapi_jwks.models.types import JWKS, JWKSConfig, JWTDecodeConfig, JWTHeader
@@ -21,6 +20,7 @@ class JWKSValidator[DataT: BaseModel]:
         self.decode_config = decode_config
         self.jwks_config = jwks_config
         self.client = self._create_client()
+        self._jwks_cache: TTLCache[str, JWKS] = TTLCache(ttl=600, maxsize=1)
 
     def _create_client(self) -> httpx.Client:
         client_kwargs: dict[str, Any] = {}
@@ -28,8 +28,13 @@ class JWKSValidator[DataT: BaseModel]:
             client_kwargs["verify"] = self.jwks_config.ca_cert_path
         return httpx.Client(**client_kwargs)
 
-    @cached(cache=TTLCache(ttl=600, maxsize=1))
-    def jwks_data(self) -> JWKS:
+    def jwks_data(self, force_refresh: bool = False) -> JWKS:
+        if force_refresh:
+            self._jwks_cache.clear()
+
+        if "jwks" in self._jwks_cache:
+            return self._jwks_cache["jwks"]
+
         try:
             logger.debug("Fetching JWKS from %s", self.jwks_config.url)
             jwks_response = self.client.get(self.jwks_config.url)
@@ -40,7 +45,9 @@ class JWKSValidator[DataT: BaseModel]:
                 detail="Invalid JWKS URI",
             ) from e
         try:
-            return JWKS.model_validate(jwks_response.json())
+            data = JWKS.model_validate(jwks_response.json())
+            self._jwks_cache["jwks"] = data
+            return data
         except pydantic.ValidationError as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Invalid JWKS"
@@ -50,30 +57,37 @@ class JWKSValidator[DataT: BaseModel]:
     def __is_generic_passed(self) -> bool:
         return getattr(self, "__orig_class__", None) is not None
 
+    def _find_public_key(self, header: JWTHeader, jwks_data: JWKS) -> bytes | None:
+        provided_algorithms = jwks_data.algorithms
+        if provided_algorithms and header.alg not in provided_algorithms:
+            logger.debug(
+                f"Could not find '{header.alg}' in provided algorithms: {provided_algorithms}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+            )
+        return jwks_data.get_public_key(header)
+
     def validate_token(self, token: str) -> DataT:
         if not self.__is_generic_passed:
             raise ValueError(
                 "Validator needs a model as generic value to decode payload"
             )
 
-        public_key: bytes | None = None
         try:
             header = JWTHeader.model_validate(jwt.get_unverified_header(token))
             jwks_data = self.jwks_data()
-            provided_algorithms = jwks_data.algorithms
-            if provided_algorithms and header.alg not in provided_algorithms:
+
+            public_key = self._find_public_key(header, jwks_data)
+            if public_key is None:
                 logger.debug(
-                    f"Could not find '{header.alg}' in provided algorithms: {provided_algorithms}"
+                    "No public key for provided kid '%s' found in JWKS data. "
+                    "Retrying with fresh JWKS data.",
+                    header.kid,
                 )
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
-                )
-            for key in jwks_data.keys:
-                if key.kid == header.kid:
-                    public_key = algorithms.get_default_algorithms()[
-                        header.alg
-                    ].from_jwk(key.model_dump(exclude_none=True))
-                    break
+                jwks_data = self.jwks_data(force_refresh=True)
+                public_key = self._find_public_key(header, jwks_data)
+
             if public_key is None:
                 logger.debug(
                     f"No public key for provided algorithm '{header.alg}' found in JWKS data"
