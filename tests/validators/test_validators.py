@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import jwt
 import pytest
+from fastapi import HTTPException, status
 from jwt.algorithms import RSAAlgorithm
 from pydantic import BaseModel
 
@@ -30,19 +31,21 @@ class JwksToken:
     signed_token: str
 
 
-def create_signed_jwt(key: str | bytes, alg: str | None = None) -> str:
+def create_signed_jwt(
+    key: str | bytes, alg: str | None = None, kid: str | None = KID
+) -> str:
     claim = {
         "user": "my-fake-user",
         "iat": datetime.datetime.now(datetime.UTC).timestamp(),
     }
-    return jwt.encode(claim, key, headers={"kid": KID}, algorithm=alg)
+    return jwt.encode(claim, key, headers={"kid": kid}, algorithm=alg)
 
 
 def new_hs256_jwks(key: dict[str, Any]):
     decoded_key = base64.urlsafe_b64decode(key["k"])
     return JwksToken(
         JWKS.model_validate({"keys": [key]}),
-        create_signed_jwt(decoded_key, key.get("alg")),
+        create_signed_jwt(decoded_key, alg=key.get("alg"), kid=key.get("kid")),
     )
 
 
@@ -188,3 +191,88 @@ def test_custom_ca_cert():
             mock_client.return_value.get.assert_called_with(
                 "https://my-fake-jwks-endpoint/my-endpoint"
             )
+
+
+def test_cache_refresh_on_kid_mismatch():
+    key1 = "secret1-at-least-32-characters-long-for-hs256"
+    key2 = "secret2-at-least-32-characters-long-for-hs256"
+    key1_b64 = base64.urlsafe_b64encode(key1.encode()).decode().rstrip("=")
+    key2_b64 = base64.urlsafe_b64encode(key2.encode()).decode().rstrip("=")
+    jwks_token1 = new_hs256_jwks(
+        {
+            "kty": "oct",
+            "use": "sig",
+            "kid": "kid1",
+            "k": key1_b64,
+            "alg": "HS256",
+        }
+    )
+    jwks_token2 = new_hs256_jwks(
+        {
+            "kty": "oct",
+            "use": "sig",
+            "kid": "kid2",
+            "k": key2_b64,
+            "alg": "HS256",
+        }
+    )
+
+    validator = JWKSValidator[FakeToken](
+        decode_config=JWTDecodeConfig(),
+        jwks_config=JWKSConfig(url="https://fake-jwks/keys"),
+    )
+
+    mock_response1 = MagicMock()
+    mock_response1.json.return_value = jwks_token1.jwks.model_dump()
+    mock_response1.raise_for_status.return_value = None
+
+    mock_response2 = MagicMock()
+    mock_response2.json.return_value = jwks_token2.jwks.model_dump()
+    mock_response2.raise_for_status.return_value = None
+
+    with patch.object(
+        validator.client, "get", side_effect=[mock_response1, mock_response2]
+    ) as mock_get:
+        # fetch jwks1 to cache it
+        validator.jwks_data()
+        assert mock_get.call_count == 1
+
+        # simulate Keycloak restart (changed kid)
+        # validating against cached jwks1 should fail, invalidate cache, refresh, and succeed with jwks2
+        payload = validator.validate_token(jwks_token2.signed_token)
+
+        assert payload.user == "my-fake-user"
+        assert mock_get.call_count == 2
+        mock_get.assert_called_with("https://fake-jwks/keys")
+
+
+def test_unauthorized_after_refresh():
+    key1 = "secret1-at-least-32-characters-long-for-hs256"
+    key1_b64 = base64.urlsafe_b64encode(key1.encode()).decode().rstrip("=")
+    jwks_token1 = new_hs256_jwks(
+        {
+            "kty": "oct",
+            "use": "sig",
+            "kid": "kid1",
+            "k": key1_b64,
+            "alg": "HS256",
+        }
+    )
+
+    validator = JWKSValidator[FakeToken](
+        decode_config=JWTDecodeConfig(),
+        jwks_config=JWKSConfig(url="https://fake-jwks/keys"),
+    )
+
+    mock_response = MagicMock()
+    mock_response.json.return_value = jwks_token1.jwks.model_dump()
+    mock_response.raise_for_status.return_value = None
+
+    with patch.object(validator.client, "get", return_value=mock_response) as mock_get:
+        token_unknown = create_signed_jwt(key1, alg="HS256", kid="unknown")
+        with pytest.raises(HTTPException) as excinfo:
+            validator.validate_token(token_unknown)
+
+        assert excinfo.value.status_code == status.HTTP_401_UNAUTHORIZED
+        assert mock_get.call_count == 2  # check that it tried refreshing once
+        mock_get.assert_called_with("https://fake-jwks/keys")
