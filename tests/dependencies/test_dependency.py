@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import jwt
 import pytest
-from fastapi import FastAPI, Security, status
+from fastapi import FastAPI, HTTPException, Security, status
 from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.testclient import TestClient
@@ -194,6 +194,40 @@ def test_missing_auth_header(client):
     response = client.get("/test-endpoint")
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert response.json()["detail"] == "Invalid authorization token"
+
+
+@pytest.mark.asyncio()
+async def test_unauthorized_errors_do_not_reuse_tracebacks():
+    def traceback_length(exc: BaseException) -> int:
+        traceback = exc.__traceback__
+        length = 0
+        while traceback is not None:
+            length += 1
+            traceback = traceback.tb_next
+        return length
+
+    jwks_verifier = MagicMock()
+    jwks_verifier.validate_token.side_effect = ValueError("invalid token")
+    jwks_auth = JWKSAuth(jwks_validator=jwks_verifier)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/test-endpoint",
+            "headers": [(b"authorization", b"Bearer invalid")],
+        }
+    )
+
+    exceptions = []
+    traceback_lengths = []
+    for _ in range(3):
+        with pytest.raises(HTTPException) as exc_info:
+            await jwks_auth(request)
+        exceptions.append(exc_info.value)
+        traceback_lengths.append(traceback_length(exc_info.value))
+
+    assert len({id(exc) for exc in exceptions}) == len(exceptions)
+    assert traceback_lengths == [traceback_lengths[0]] * len(traceback_lengths)
 
 
 def test_custom_ca_cert(jwks_fake_data: JWKS):

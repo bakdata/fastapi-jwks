@@ -13,6 +13,14 @@ UNAUTHORIZED_ERROR = HTTPException(
 )
 
 
+def _unauthorized_error() -> HTTPException:
+    return HTTPException(
+        status_code=UNAUTHORIZED_ERROR.status_code,
+        detail=UNAUTHORIZED_ERROR.detail,
+        headers=UNAUTHORIZED_ERROR.headers,
+    )
+
+
 @final
 class JWKSAuth[DataT: BaseModel](HTTPBase):
     def __init__(
@@ -35,21 +43,21 @@ class JWKSAuth[DataT: BaseModel](HTTPBase):
     async def __call__(self, request: Request) -> JWKSAuthCredentials[DataT]:
         authorization = request.headers.get(self.auth_header)
         if not authorization:
-            raise UNAUTHORIZED_ERROR
+            raise _unauthorized_error()
 
         try:
             scheme, _, token = authorization.partition(" ")
             if scheme.lower() != self.auth_scheme:
-                raise UNAUTHORIZED_ERROR
+                raise _unauthorized_error()
         except ValueError as e:
-            raise UNAUTHORIZED_ERROR from e
+            raise _unauthorized_error() from e
 
         try:
             payload = self.jwks_validator.validate_token(token)
             setattr(request.state, self.config.payload_field, payload)
             setattr(request.state, self.config.token_field, token)
         except Exception as e:
-            raise UNAUTHORIZED_ERROR from e
+            raise _unauthorized_error() from e
 
         return JWKSAuthCredentials[DataT](
             scheme=scheme, credentials=token, payload=payload
