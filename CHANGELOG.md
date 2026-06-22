@@ -1,4 +1,13 @@
 # Changelog
+## [2.0.2](https://github.com/bakdata/fastapi-jwks/releases/tag/2.0.2) - Release Date: [2026-06-22]
+
+#### Merged pull requests:
+
+- fix: avoid reusing authorization exception instance [#174](https://github.com/bakdata/fastapi-jwks/pull/174) ([@gaoflow](https://github.com/gaoflow))
+
+
+
+
 ## [2.0.1](https://github.com/bakdata/fastapi-jwks/releases/tag/2.0.1) - Release Date: [2026-01-21]
 
 #### Merged pull requests:
