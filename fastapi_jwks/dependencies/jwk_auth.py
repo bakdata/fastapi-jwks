@@ -7,17 +7,11 @@ from pydantic import BaseModel
 from fastapi_jwks.models.types import JWKSAuthConfig, JWKSAuthCredentials
 from fastapi_jwks.validators import JWKSValidator
 
-UNAUTHORIZED_ERROR = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail="Invalid authorization token",
-)
-
 
 def _unauthorized_error() -> HTTPException:
     return HTTPException(
-        status_code=UNAUTHORIZED_ERROR.status_code,
-        detail=UNAUTHORIZED_ERROR.detail,
-        headers=UNAUTHORIZED_ERROR.headers,
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid authorization token",
     )
 
 

@@ -227,7 +227,7 @@ async def test_unauthorized_errors_do_not_reuse_tracebacks():
         traceback_lengths.append(traceback_length(exc_info.value))
 
     assert len({id(exc) for exc in exceptions}) == len(exceptions)
-    assert traceback_lengths == [traceback_lengths[0]] * len(traceback_lengths)
+    assert len(set(traceback_lengths)) == 1
 
 
 def test_custom_ca_cert(jwks_fake_data: JWKS):
