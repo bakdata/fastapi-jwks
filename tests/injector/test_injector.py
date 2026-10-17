@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from pydantic import BaseModel
+from starlette.requests import Request
 
 from fastapi_jwks.injector import JWTRawTokenInjector, JWTTokenInjector
 from fastapi_jwks.models.types import JWTTokenInjectorConfig
@@ -43,3 +44,25 @@ async def test_raw_token_injector_with_custom_field():
     config = JWTTokenInjectorConfig(token_field="custom_token")
     injector = JWTRawTokenInjector(config=config)
     assert (await injector(mock_request)) == token
+
+
+@pytest.mark.asyncio()
+@pytest.mark.parametrize(
+    ("injector", "field"),
+    [
+        (JWTTokenInjector[FakeUser](), "payload"),
+        (JWTRawTokenInjector(), "raw_token"),
+        (
+            JWTTokenInjector[FakeUser](
+                config=JWTTokenInjectorConfig(payload_field="custom_payload")
+            ),
+            "custom_payload",
+        ),
+    ],
+)
+async def test_injector_missing_state(
+    injector: JWTTokenInjector[FakeUser] | JWTRawTokenInjector, field: str
+):
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
+    with pytest.raises(RuntimeError, match=rf"'{field}'.*JWKSAuth"):
+        await injector(request)
