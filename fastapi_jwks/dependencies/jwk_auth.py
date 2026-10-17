@@ -9,13 +9,6 @@ from fastapi_jwks.models.types import JWKSAuthConfig, JWKSAuthCredentials
 from fastapi_jwks.validators import JWKSValidator
 
 
-def _unauthorized_error() -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid authorization token",
-    )
-
-
 @final
 class JWKSAuth[DataT: BaseModel](HTTPBase):
     def __init__(
@@ -30,30 +23,40 @@ class JWKSAuth[DataT: BaseModel](HTTPBase):
         self.jwks_validator = jwks_validator
         self.auth_header = auth_header
         self.auth_scheme = auth_scheme.lower()
+        self._challenge = auth_scheme
         super().__init__(
             scheme=self.auth_scheme, scheme_name=scheme_name, auto_error=False
+        )
+
+    def _unauthorized_error(
+        self, detail: str = "Invalid authorization token"
+    ) -> HTTPException:
+        return HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=detail,
+            headers={"WWW-Authenticate": self._challenge},
         )
 
     @override
     async def __call__(self, request: HTTPConnection) -> JWKSAuthCredentials[DataT]:
         authorization = request.headers.get(self.auth_header)
         if not authorization:
-            raise _unauthorized_error()
+            raise self._unauthorized_error()
 
-        try:
-            scheme, _, token = authorization.partition(" ")
-            if scheme.lower() != self.auth_scheme:
-                raise _unauthorized_error()
-        except ValueError as e:
-            raise _unauthorized_error() from e
+        scheme, _, token = authorization.partition(" ")
+        token = token.strip()
+        if scheme.lower() != self.auth_scheme or not token:
+            raise self._unauthorized_error()
 
         try:
             payload = await self.jwks_validator.validate_token(token)
-            setattr(request.state, self.config.payload_field, payload)
-            setattr(request.state, self.config.token_field, token)
-        except Exception as e:
-            raise _unauthorized_error() from e
+        except HTTPException as e:
+            if e.status_code != status.HTTP_401_UNAUTHORIZED:
+                raise
+            raise self._unauthorized_error(e.detail) from None
 
+        setattr(request.state, self.config.payload_field, payload)
+        setattr(request.state, self.config.token_field, token)
         return JWKSAuthCredentials[DataT](
             scheme=scheme, credentials=token, payload=payload
         )
