@@ -1,12 +1,14 @@
-import base64
 import tempfile
 from collections.abc import Generator
-from typing import Annotated
+from typing import Annotated, Any
 from unittest.mock import MagicMock, patch
 
+import httpx
 import jwt
 import pytest
+from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import FastAPI, HTTPException, Security, status
+from jwt.algorithms import RSAAlgorithm
 from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.testclient import TestClient
@@ -28,20 +30,19 @@ class FakeToken(BaseModel):
     user: str
 
 
+RSA_PRIVATE_KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+KID = "sYW9Qh23pPfbD06_F4UY6oAdi2FlNTwBAV6L6YMLY3o"
+
+
+def sign_token(claims: dict[str, Any]) -> str:
+    return jwt.encode(claims, RSA_PRIVATE_KEY, headers={"kid": KID}, algorithm="RS256")
+
+
 @pytest.fixture()
 def jwks_fake_data() -> JWKS:
+    jwk = RSAAlgorithm.to_jwk(RSA_PRIVATE_KEY.public_key(), as_dict=True)
     return JWKS.model_validate(
-        {
-            "keys": [
-                {
-                    "kty": "oct",
-                    "use": "sig",
-                    "kid": "sYW9Qh23pPfbD06_F4UY6oAdi2FlNTwBAV6L6YMLY3o",
-                    "k": "b3NFUGVJR09BRW1JMzd6UTdYLUtaT0haci1ZUTZSVzhqaGd0QVhBdThKazZMSWFMclg3TXJsTHJ3YTZXenM3NWI4U1l3em1sQ0VLdXlJeXpVeXNDMmRLeVZ5RkVHSHZ5OWdtNk1PSGRTWjZXWDdWN3VIMHpaZmlkbDZhVV9LYTI0dnF3WHlYaXBKWHV5LWJoMVl4U0w4M0RRVnhmbk43X2NSMHNGbzVoSmFhUnJpT2NYWUt2SEJ2YXQ0dHFRMldJZnNTenJxdTA5alY0RFN4TjdXaTJ5NHJrU1dmVXY4cVV2ZU9OUHVUc3hQQURRb3RKdExsMUtEeGRjUHFIVkZPUTRmODhMZkZJb3ZreXZsNEZiSHM3Q05Uejh2Z0Etdml2cGhRNXJyVGVuUjUxaUd0c0lybC14V29KZXFzQ3lDVXdGdzl2SmxheFhqWXM0TDBsT3dLcGVR",
-                    "alg": "HS256",
-                }
-            ]
-        }
+        {"keys": [jwk | {"use": "sig", "kid": KID, "alg": "RS256"}]}
     )
 
 
@@ -85,18 +86,8 @@ def test_openapi_security_schema(app: FastAPI):
 
 
 @pytest.fixture()
-def signed_token(jwks_fake_data: JWKS) -> str:
-    jwk = jwks_fake_data.keys[0]
-    key = jwk.k
-    assert key
-    algo = jwk.alg
-    kid = jwk.kid
-
-    claim = {"user": "my-fake-user"}
-    signed_token = jwt.encode(
-        claim, base64.urlsafe_b64decode(key), headers={"kid": kid}, algorithm=algo
-    )
-    return signed_token
+def signed_token() -> str:
+    return sign_token({"user": "my-fake-user"})
 
 
 def test_simple_example(client: TestClient, signed_token: str):
@@ -150,16 +141,8 @@ def test_custom_auth_header_and_scheme(jwks_fake_data: JWKS):
 
     client = TestClient(test_app)
 
-    jwk = jwks_fake_data.keys[0]
-    key = jwk.k
-    assert key
-    algo = jwk.alg
-    kid = jwk.kid
-
     claim = {"user": "my-custom-user"}
-    signed_token = jwt.encode(
-        claim, base64.urlsafe_b64decode(key), headers={"kid": kid}, algorithm=algo
-    )
+    signed_token = sign_token(claim)
 
     response = client.get(
         "/test-endpoint", headers={"X-Custom-Auth": f"Token {signed_token}"}
@@ -172,16 +155,8 @@ def test_custom_auth_header_and_scheme(jwks_fake_data: JWKS):
 
 
 def test_invalid_auth_scheme(client, jwks_fake_data: JWKS):
-    jwk = jwks_fake_data.keys[0]
-    key = jwk.k
-    assert key
-    algo = jwk.alg
-    kid = jwk.kid
-
     claim = {"user": "my-fake-user"}
-    signed_token = jwt.encode(
-        claim, base64.urlsafe_b64decode(key), headers={"kid": kid}, algorithm=algo
-    )
+    signed_token = sign_token(claim)
 
     response = client.get(
         "/test-endpoint", headers={"Authorization": f"Invalid {signed_token}"}
@@ -231,60 +206,60 @@ async def test_unauthorized_errors_do_not_reuse_tracebacks():
 
 
 def test_custom_ca_cert(jwks_fake_data: JWKS):
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".pem") as ca_cert_file:
-        ca_cert_file.write(
-            "-----BEGIN CERTIFICATE-----\nMIID...\n-----END CERTIFICATE-----\n"
+    ssl_context = MagicMock()
+    client_kwargs: list[dict[str, Any]] = []
+    requested_urls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested_urls.append(str(request.url))
+        return httpx.Response(
+            200, json=jwks_fake_data.model_dump(by_alias=True, exclude_none=True)
         )
-        ca_cert_file.flush()
 
-        with patch("httpx.Client") as mock_client:
-            mock_response = MagicMock()
-            mock_response.json.return_value = jwks_fake_data
-            mock_response.raise_for_status.return_value = None
-            mock_client.return_value.get.return_value = mock_response
+    real_async_client = httpx.AsyncClient
 
-            jwks_verifier = JWKSValidator[FakeToken](
-                decode_config=JWTDecodeConfig(),
-                jwks_config=JWKSConfig(
-                    url="http://my-fake-jwks-url/my-fake-endpoint",
-                    ca_cert_path=ca_cert_file.name,
-                ),
-            )
+    def async_client(**kwargs: Any) -> httpx.AsyncClient:
+        client_kwargs.append(kwargs)
+        return real_async_client(transport=httpx.MockTransport(handler))
 
-            jwks_auth = JWKSAuth(jwks_validator=jwks_verifier)
-            test_app = FastAPI(dependencies=[Security(jwks_auth)])
+    with (
+        tempfile.NamedTemporaryFile(mode="w", suffix=".pem") as ca_cert_file,
+        patch("ssl.create_default_context", return_value=ssl_context) as create_ctx,
+        patch(
+            "fastapi_jwks.validators.jwks_fetcher.httpx.AsyncClient",
+            side_effect=async_client,
+        ),
+    ):
+        jwks_verifier = JWKSValidator[FakeToken](
+            decode_config=JWTDecodeConfig(),
+            jwks_config=JWKSConfig(
+                url="http://my-fake-jwks-url/my-fake-endpoint",
+                ca_cert_path=ca_cert_file.name,
+            ),
+        )
 
-            @test_app.get("/test-endpoint", response_model=FakeToken)
-            def get_test_route(request: Request):
-                return request.state.payload
+        jwks_auth = JWKSAuth(jwks_validator=jwks_verifier)
+        test_app = FastAPI(dependencies=[Security(jwks_auth)])
 
-            client = TestClient(test_app)
+        @test_app.get("/test-endpoint", response_model=FakeToken)
+        def get_test_route(request: Request):
+            return request.state.payload
 
-            jwk = jwks_fake_data.keys[0]
-            key = jwk.k
-            assert key
-            algo = jwk.alg
-            kid = jwk.kid
+        client = TestClient(test_app)
 
-            claim = {"user": "my-custom-ca-user"}
-            signed_token = jwt.encode(
-                claim,
-                base64.urlsafe_b64decode(key),
-                headers={"kid": kid},
-                algorithm=algo,
-            )
+        claim = {"user": "my-custom-ca-user"}
+        signed_token = sign_token(claim)
 
-            response = client.get(
-                "/test-endpoint", headers={"Authorization": f"Bearer {signed_token}"}
-            )
-            data = response.json()
+        response = client.get(
+            "/test-endpoint", headers={"Authorization": f"Bearer {signed_token}"}
+        )
+        data = response.json()
 
-            assert data["user"] == claim["user"]
-            assert response.status_code == status.HTTP_200_OK
-            mock_client.assert_called_once_with(verify=ca_cert_file.name)
-            mock_client.return_value.get.assert_called_once_with(
-                "http://my-fake-jwks-url/my-fake-endpoint"
-            )
+        assert data["user"] == claim["user"]
+        assert response.status_code == status.HTTP_200_OK
+        create_ctx.assert_called_once_with(cafile=ca_cert_file.name)
+        assert [kwargs["verify"] for kwargs in client_kwargs] == [ssl_context]
+        assert requested_urls == ["http://my-fake-jwks-url/my-fake-endpoint"]
 
 
 def test_custom_state_fields(jwks_fake_data: JWKS):
@@ -321,16 +296,8 @@ def test_custom_state_fields(jwks_fake_data: JWKS):
     assert response.json()["detail"] == "Invalid authorization token"
 
     # Test with token
-    jwk = jwks_fake_data.keys[0]
-    key = jwk.k
-    assert key
-    algo = jwk.alg
-    kid = jwk.kid
-
     claim = {"user": "custom-fields-user"}
-    signed_token = jwt.encode(
-        claim, base64.urlsafe_b64decode(key), headers={"kid": kid}, algorithm=algo
-    )
+    signed_token = sign_token(claim)
 
     response = client.get(
         "/test-endpoint", headers={"Authorization": f"Bearer {signed_token}"}
@@ -383,16 +350,8 @@ async def test_token_injector_with_custom_fields(jwks_fake_data: JWKS):
     assert response.json()["detail"] == "Invalid authorization token"
 
     # Test with token
-    jwk = jwks_fake_data.keys[0]
-    key = jwk.k
-    assert key
-    algo = jwk.alg
-    kid = jwk.kid
-
     claim = {"user": "injector-custom-fields-user"}
-    signed_token = jwt.encode(
-        claim, base64.urlsafe_b64decode(key), headers={"kid": kid}, algorithm=algo
-    )
+    signed_token = sign_token(claim)
 
     response = client.get(
         "/test-endpoint", headers={"Authorization": f"Bearer {signed_token}"}
