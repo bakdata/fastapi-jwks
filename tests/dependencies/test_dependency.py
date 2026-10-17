@@ -1,7 +1,8 @@
+import asyncio
 import tempfile
 from collections.abc import Generator
 from typing import Annotated, Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import jwt
@@ -182,7 +183,11 @@ async def test_unauthorized_errors_do_not_reuse_tracebacks():
         return length
 
     jwks_verifier = MagicMock()
-    jwks_verifier.validate_token.side_effect = ValueError("invalid token")
+    jwks_verifier.validate_token = AsyncMock(
+        side_effect=HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
+    )
     jwks_auth = JWKSAuth(jwks_validator=jwks_verifier)
     request = Request(
         {
@@ -203,6 +208,7 @@ async def test_unauthorized_errors_do_not_reuse_tracebacks():
 
     assert len({id(exc) for exc in exceptions}) == len(exceptions)
     assert len(set(traceback_lengths)) == 1
+    assert all(exc.headers == {"WWW-Authenticate": "Bearer"} for exc in exceptions)
 
 
 def test_custom_ca_cert(jwks_fake_data: JWKS):
@@ -362,3 +368,135 @@ async def test_token_injector_with_custom_fields(jwks_fake_data: JWKS):
     assert data["injected_token"] == signed_token
     assert response.status_code == status.HTTP_200_OK
     mocked_jwt.stop()
+
+
+def _app_with_validator(
+    validate_token: AsyncMock, auth_scheme: str = "Bearer"
+) -> FastAPI:
+    jwks_verifier = MagicMock()
+    jwks_verifier.validate_token = validate_token
+    jwks_auth = JWKSAuth(jwks_validator=jwks_verifier, auth_scheme=auth_scheme)
+    test_app = FastAPI(dependencies=[Security(jwks_auth)])
+
+    @test_app.get("/test-endpoint", response_model=FakeToken)
+    def get_test_route(request: Request):
+        return request.state.payload
+
+    return test_app
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        {},
+        {"Authorization": "Basic dXNlcjpwYXNz"},
+        {"Authorization": "Bearer"},
+        {"Authorization": "Bearer    "},
+        {"Authorization": "Bearer not-a-jwt"},
+    ],
+    ids=["missing", "wrong-scheme", "no-token", "blank-token", "invalid-token"],
+)
+def test_unauthorized_has_www_authenticate(client: TestClient, headers: dict):
+    response = client.get("/test-endpoint", headers=headers)
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.headers["WWW-Authenticate"] == "Bearer"
+
+
+def test_www_authenticate_uses_custom_scheme():
+    validate_token = AsyncMock(
+        side_effect=HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
+    )
+    client = TestClient(_app_with_validator(validate_token, auth_scheme="Token"))
+
+    for headers in ({}, {"Authorization": "token abc"}):
+        response = client.get("/test-endpoint", headers=headers)
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert response.headers["WWW-Authenticate"] == "Token"
+
+
+def test_validator_unavailable_propagates_503():
+    validate_token = AsyncMock(
+        side_effect=HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="JWKS unavailable"
+        )
+    )
+    client = TestClient(_app_with_validator(validate_token))
+
+    response = client.get("/test-endpoint", headers={"Authorization": "Bearer abc"})
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json()["detail"] == "JWKS unavailable"
+    assert "WWW-Authenticate" not in response.headers
+
+
+def test_expired_token_detail(jwks_auth: JWKSAuth, jwks_fake_data: JWKS):
+    test_app = FastAPI(dependencies=[Security(jwks_auth)])
+
+    @test_app.get("/test-endpoint")
+    def get_test_route():
+        return {}
+
+    expired_token = sign_token({"user": "my-fake-user", "exp": 1})
+
+    response = TestClient(test_app).get(
+        "/test-endpoint", headers={"Authorization": f"Bearer {expired_token}"}
+    )
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.json()["detail"] == "Token has expired"
+    assert response.headers["WWW-Authenticate"] == "Bearer"
+
+
+def test_missing_generic_propagates(jwks_fake_data: JWKS, signed_token: str):
+    jwks_verifier = JWKSValidator(
+        decode_config=JWTDecodeConfig(),
+        jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
+    )
+    test_app = FastAPI(dependencies=[Security(JWKSAuth(jwks_validator=jwks_verifier))])
+
+    @test_app.get("/test-endpoint")
+    def get_test_route():
+        return {}
+
+    with (
+        patch(
+            "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
+            return_value=jwks_fake_data,
+        ),
+        pytest.raises(ValueError, match="generic"),
+    ):
+        TestClient(test_app).get(
+            "/test-endpoint", headers={"Authorization": f"Bearer {signed_token}"}
+        )
+
+
+def test_extra_whitespace_before_token(client: TestClient, signed_token: str):
+    response = client.get(
+        "/test-endpoint", headers={"Authorization": f"Bearer   {signed_token} "}
+    )
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["user"] == "my-fake-user"
+
+
+def test_state_not_set_on_failed_validation():
+    validate_token = AsyncMock(
+        side_effect=HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
+    )
+    jwks_verifier = MagicMock()
+    jwks_verifier.validate_token = validate_token
+    jwks_auth = JWKSAuth(jwks_validator=jwks_verifier)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/test-endpoint",
+            "headers": [(b"authorization", b"Bearer invalid")],
+        }
+    )
+
+    with pytest.raises(HTTPException):
+        asyncio.run(jwks_auth(request))
+    assert not hasattr(request.state, "payload")
+    assert not hasattr(request.state, "raw_token")
