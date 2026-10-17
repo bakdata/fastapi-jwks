@@ -22,8 +22,14 @@ class JWTDecodeConfig(BaseModel):
 
 
 class JWKSAuthConfig(BaseModel):
+    """Request state fields where JWKSAuth stores, and the injectors read, the token"""
+
     payload_field: str = "payload"
     token_field: str = "raw_token"
+
+
+# Deprecated: kept for backward compatibility, use JWKSAuthConfig instead
+JWTTokenInjectorConfig = JWKSAuthConfig
 
 
 class JWKSConfig(BaseModel):
@@ -42,11 +48,6 @@ class JWKSConfig(BaseModel):
             description="Minimum seconds between a forced or retried fetch and the previous fetch attempt",
         ),
     ] = 30
-
-
-class JWTTokenInjectorConfig(BaseModel):
-    payload_field: str = "payload"
-    token_field: str = "raw_token"
 
 
 class JWKSAuthCredentials[DataT: BaseModel](HTTPAuthorizationCredentials):

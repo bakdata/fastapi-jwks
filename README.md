@@ -72,24 +72,19 @@ def get_test_route(
 You can customize where the payload and raw token are stored in the request state:
 
 ```python
-from fastapi_jwks.models.types import JWKSAuthConfig, JWTTokenInjectorConfig
+from fastapi_jwks.models.types import JWKSAuthConfig
 from fastapi_jwks.injector import JWTTokenInjector, JWTRawTokenInjector
 
-# Configure depdency with custom field names
-auth_config = JWKSAuthConfig(
+# Use the same field names for the dependency and the injectors
+state_config = JWKSAuthConfig(
     payload_field="custom_payload",
     token_field="custom_token",
 )
-jwks_auth = JWKSAuth(jwks_validator=jwks_verifier, config=auth_config)
+jwks_auth = JWKSAuth(jwks_validator=jwks_verifier, config=state_config)
 app = FastAPI(dependencies=[Security(jwks_auth)])
 
-# Configure injectors to use the custom fields
-payload_injector = JWTTokenInjector[FakeToken](
-    config=JWTTokenInjectorConfig(payload_field="custom_payload")
-)
-token_injector = JWTRawTokenInjector[str](
-    config=JWTTokenInjectorConfig(token_field="custom_token")
-)
+payload_injector = JWTTokenInjector[FakeToken](config=state_config)
+token_injector = JWTRawTokenInjector[str](config=state_config)
 
 
 @app.get("/advanced-endpoint")
