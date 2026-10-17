@@ -8,9 +8,15 @@ from pydantic import AnyUrl, BaseModel, ConfigDict, Field
 class JWTDecodeConfig(BaseModel):
     """Options passed to pyjwt's jwt.decode()"""
 
+    algorithms: Annotated[
+        list[str] | None,
+        Field(
+            description="Allowed signing algorithms. Defaults to the algorithm bound to the matching key. Symmetric (HMAC) keys are always rejected"
+        ),
+    ] = None
     audience: list[str] | None = None
     issuer: str | None = None
-    leeway: float | timedelta = 0
+    leeway: float | timedelta = 0.0
     options: dict[str, Any] | None = None
     verify: bool | None = None
 
@@ -124,7 +130,3 @@ class JWK(BaseModel):
 
 class JWKS(BaseModel):
     keys: Annotated[list[JWK], Field(min_length=1)]
-
-    @property
-    def algorithms(self) -> list[str]:
-        return [key.alg for key in self.keys if key.alg is not None]
