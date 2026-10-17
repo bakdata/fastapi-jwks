@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from starlette.requests import Request
 
 from fastapi_jwks.injector import JWTRawTokenInjector, JWTTokenInjector
-from fastapi_jwks.models.types import JWTTokenInjectorConfig
+from fastapi_jwks.models.types import JWKSAuthConfig, JWTTokenInjectorConfig
 
 
 class FakeUser(BaseModel):
@@ -32,7 +32,7 @@ async def test_raw_token_injector_return_call():
 async def test_injector_with_custom_field():
     user = FakeUser(user="my-fake-user")
     mock_request = MagicMock(state=MagicMock(custom_payload=user))
-    config = JWTTokenInjectorConfig(payload_field="custom_payload")
+    config = JWKSAuthConfig(payload_field="custom_payload")
     injector = JWTTokenInjector[FakeUser](config=config)
     assert (await injector(mock_request)) == user
 
@@ -41,7 +41,7 @@ async def test_injector_with_custom_field():
 async def test_raw_token_injector_with_custom_field():
     token = "my-fake-token"
     mock_request = MagicMock(state=MagicMock(custom_token=token))
-    config = JWTTokenInjectorConfig(token_field="custom_token")
+    config = JWKSAuthConfig(token_field="custom_token")
     injector = JWTRawTokenInjector(config=config)
     assert (await injector(mock_request)) == token
 
@@ -54,7 +54,7 @@ async def test_raw_token_injector_with_custom_field():
         (JWTRawTokenInjector(), "raw_token"),
         (
             JWTTokenInjector[FakeUser](
-                config=JWTTokenInjectorConfig(payload_field="custom_payload")
+                config=JWKSAuthConfig(payload_field="custom_payload")
             ),
             "custom_payload",
         ),
@@ -66,3 +66,12 @@ async def test_injector_missing_state(
     request = Request({"type": "http", "method": "GET", "path": "/", "headers": []})
     with pytest.raises(RuntimeError, match=rf"'{field}'.*JWKSAuth"):
         await injector(request)
+
+
+@pytest.mark.asyncio()
+async def test_deprecated_injector_config_alias():
+    user = FakeUser(user="my-fake-user")
+    mock_request = MagicMock(state=MagicMock(custom_payload=user))
+    config = JWTTokenInjectorConfig(payload_field="custom_payload")
+    injector = JWTTokenInjector[FakeUser](config=config)
+    assert (await injector(mock_request)) == user

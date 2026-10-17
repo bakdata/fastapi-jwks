@@ -3,7 +3,7 @@ from typing import Any
 from pydantic import BaseModel
 from starlette.requests import Request
 
-from fastapi_jwks.models.types import JWTTokenInjectorConfig
+from fastapi_jwks.models.types import JWKSAuthConfig
 
 
 def _get_state(request: Request, field: str) -> Any:
@@ -18,16 +18,16 @@ def _get_state(request: Request, field: str) -> Any:
 
 
 class JWTTokenInjector[DataT: BaseModel]:
-    def __init__(self, config: JWTTokenInjectorConfig | None = None):
-        self.config: JWTTokenInjectorConfig = config or JWTTokenInjectorConfig()
+    def __init__(self, config: JWKSAuthConfig | None = None):
+        self.config: JWKSAuthConfig = config or JWKSAuthConfig()
 
     async def __call__(self, request: Request) -> DataT:
         return _get_state(request, self.config.payload_field)
 
 
 class JWTRawTokenInjector:
-    def __init__(self, config: JWTTokenInjectorConfig | None = None):
-        self.config: JWTTokenInjectorConfig = config or JWTTokenInjectorConfig()
+    def __init__(self, config: JWKSAuthConfig | None = None):
+        self.config: JWKSAuthConfig = config or JWKSAuthConfig()
 
     async def __call__(self, request: Request) -> str:
         return _get_state(request, self.config.token_field)

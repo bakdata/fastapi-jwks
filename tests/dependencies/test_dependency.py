@@ -8,7 +8,7 @@ import httpx
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
-from fastapi import FastAPI, HTTPException, Security, status
+from fastapi import Depends, FastAPI, HTTPException, Security, status
 from jwt.algorithms import RSAAlgorithm
 from pydantic import BaseModel
 from starlette.requests import Request
@@ -22,7 +22,6 @@ from fastapi_jwks.models.types import (
     JWKSAuthCredentials,
     JWKSConfig,
     JWTDecodeConfig,
-    JWTTokenInjectorConfig,
 )
 from fastapi_jwks.validators import JWKSValidator
 
@@ -339,10 +338,10 @@ async def test_token_injector_with_custom_fields(jwks_fake_data: JWKS):
     @test_app.get("/test-endpoint", response_model=dict)
     async def get_test_route(request: Request):
         payload_injector = JWTTokenInjector[FakeToken](
-            config=JWTTokenInjectorConfig(payload_field="custom_payload")
+            config=JWKSAuthConfig(payload_field="custom_payload")
         )
         token_injector = JWTRawTokenInjector(
-            config=JWTTokenInjectorConfig(token_field="custom_token")
+            config=JWKSAuthConfig(token_field="custom_token")
         )
         payload = await payload_injector(request)
         token = await token_injector(request)
@@ -500,3 +499,35 @@ def test_state_not_set_on_failed_validation():
         asyncio.run(jwks_auth(request))
     assert not hasattr(request.state, "payload")
     assert not hasattr(request.state, "raw_token")
+
+
+def test_shared_state_config(jwks_fake_data: JWKS, signed_token: str):
+    config = JWKSAuthConfig(payload_field="shared_payload", token_field="shared_token")
+    jwks_auth = JWKSAuth(
+        jwks_validator=JWKSValidator[FakeToken](
+            decode_config=JWTDecodeConfig(),
+            jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
+        ),
+        config=config,
+    )
+    payload_injector = JWTTokenInjector[FakeToken](config=config)
+    token_injector = JWTRawTokenInjector(config=config)
+    test_app = FastAPI(dependencies=[Security(jwks_auth)])
+
+    @test_app.get("/test-endpoint")
+    def get_test_route(
+        payload: Annotated[FakeToken, Depends(payload_injector)],
+        token: Annotated[str, Depends(token_injector)],
+    ) -> dict[str, str]:
+        return {"user": payload.user, "token": token}
+
+    with patch(
+        "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
+        return_value=jwks_fake_data,
+    ):
+        response = TestClient(test_app).get(
+            "/test-endpoint", headers={"Authorization": f"Bearer {signed_token}"}
+        )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {"user": "my-fake-user", "token": signed_token}
