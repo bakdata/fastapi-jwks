@@ -2,6 +2,7 @@ import base64
 import dataclasses
 import datetime
 import json
+import logging
 import warnings
 from pathlib import Path
 from typing import Any
@@ -464,3 +465,24 @@ async def test_no_warnings_during_validation(jwks_token: JwksToken):
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         await validator.validate_token(jwks_token.signed_token)
+
+
+@pytest.mark.asyncio()
+@pytest.mark.parametrize(
+    "header",
+    [
+        {"alg": "RS256", "kid": "unknown\nforged log line"},
+        {"alg": "RS256\nforged log line", "kid": KID},
+    ],
+)
+async def test_token_values_cannot_forge_log_lines(
+    caplog: pytest.LogCaptureFixture, header: dict[str, Any]
+):
+    validator = make_validator(jwks_of(rsa_jwk(alg="RS256")))
+
+    with caplog.at_level(logging.DEBUG, logger="fastapi-jwks"):
+        await assert_unauthorized(validator, unsigned_token(header))
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert any("forged log line" in message for message in messages)
+    assert not any("\n" in message for message in messages)

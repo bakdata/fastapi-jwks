@@ -61,7 +61,7 @@ class JWKSValidator[DataT: BaseModel]:
                 or header.alg not in allowed_algorithms
             ):
                 logger.debug(
-                    "Token algorithm '%s' does not match key algorithm '%s' or allowed algorithms %s",
+                    "Token algorithm %r does not match key algorithm %r or allowed algorithms %r",
                     header.alg,
                     signing_key.algorithm_name,
                     allowed_algorithms,
@@ -97,7 +97,7 @@ class JWKSValidator[DataT: BaseModel]:
             for key in jwks.keys:
                 if _is_signing_key(key) and key.kid == header.kid:
                     return key
-            logger.debug("No signing key found for kid '%s'", header.kid)
+            logger.debug("No signing key found for kid %r", header.kid)
         raise _InvalidTokenError
 
     def _signing_key(self, key: JWK, header: JWTHeader) -> jwt.PyJWK:
