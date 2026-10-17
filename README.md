@@ -4,7 +4,7 @@ fastapi-jwks is a Python library designed to facilitate the integration of JSON 
 
 ## Key Features
 
-- **JWKS Endpoint Querying**: The library automatically queries the JWKS endpoint to fetch the necessary keys for token verification.
+- **JWKS Endpoint Querying**: The library automatically queries the JWKS endpoint to fetch the necessary keys for token verification. Keys are cached and refreshed on key rotation.
 - **Token Verification**: It verifies the tokens sent over a request with the JWKS endpoint, ensuring the authenticity and integrity of the data.
 - **Dependency Integration**: The library includes a dependency that can be easily integrated into your FastAPI application to handle token validation on every request.
 - **Pydantic Model Support**: It supports Pydantic models for token data extraction, providing a seamless way to work with the token data.
@@ -20,49 +20,48 @@ pip install fastapi_jwks
 ## Basic Usage
 
 ```python
-from fastapi import FastAPI
-from fastapi import Depends, Security
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, FastAPI, Security
 from pydantic import BaseModel
+
+from fastapi_jwks.dependencies import JWKSAuth
 from fastapi_jwks.injector import JWTTokenInjector
-from fastapi_jwks.dependencies.jwk_auth import JWKSAuth
-from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig, JWKSAuthCredentials
+from fastapi_jwks.models.types import JWKSAuthCredentials, JWKSConfig, JWTDecodeConfig
 from fastapi_jwks.validators import JWKSValidator
 
 
 # The data we want to extract from the token
-class FakeToken(BaseModel):
+class UserToken(BaseModel):
     user: str
 
 
-app = FastAPI()
-
-# Basic usage with default configuration
-payload_injector = JWTTokenInjector[FakeToken]()
-
-
-@app.get("/my-endpoint", response_model=FakeToken)
-def my_endpoint(fake_token: FakeToken = Depends(payload_injector)):
-    return fake_token
-
-
-jwks_verifier = JWKSValidator[FakeToken](
+jwks_validator = JWKSValidator[UserToken](
     decode_config=JWTDecodeConfig(),
-    jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
+    jwks_config=JWKSConfig(url="https://my-idp.example.com/.well-known/jwks.json"),
 )
-jwks_auth = JWKSAuth(jwks_validator=jwks_verifier)
+jwks_auth = JWKSAuth(jwks_validator=jwks_validator)
+payload_injector = JWTTokenInjector[UserToken]()
 
 # global: protect all endpoints
 app = FastAPI(dependencies=[Security(jwks_auth)])
 
+
+@app.get("/me", response_model=UserToken)
+def me(token: Annotated[UserToken, Depends(payload_injector)]) -> UserToken:
+    return token
+
+
 # specific API router
-app.include_router(APIRouter(dependencies=[Security(jwks_auth)]))
+router = APIRouter(dependencies=[Security(jwks_auth)])
+app.include_router(router)
 
-
-# specific route
-@app.get("/test")
-def get_test_route(
-    credentials: Annotated[JWKSAuthCredentials[FakeToken], Security(jwks_auth)],
-): ...
+# specific route: the dependency also returns the credentials and decoded payload
+@app.get("/protected")
+def protected(
+    credentials: Annotated[JWKSAuthCredentials[UserToken], Security(jwks_auth)],
+) -> UserToken:
+    return credentials.payload
 ```
 
 ## Advanced Usage
@@ -72,46 +71,26 @@ def get_test_route(
 You can customize where the payload and raw token are stored in the request state:
 
 ```python
+from fastapi_jwks.injector import JWTRawTokenInjector, JWTTokenInjector
 from fastapi_jwks.models.types import JWKSAuthConfig
-from fastapi_jwks.injector import JWTTokenInjector, JWTRawTokenInjector
 
 # Use the same field names for the dependency and the injectors
 state_config = JWKSAuthConfig(
-    payload_field="custom_payload",
-    token_field="custom_token",
+    payload_field="custom_payload", token_field="custom_token"
 )
-jwks_auth = JWKSAuth(jwks_validator=jwks_verifier, config=state_config)
+jwks_auth = JWKSAuth(jwks_validator=jwks_validator, config=state_config)
 app = FastAPI(dependencies=[Security(jwks_auth)])
 
-payload_injector = JWTTokenInjector[FakeToken](config=state_config)
-token_injector = JWTRawTokenInjector[str](config=state_config)
+payload_injector = JWTTokenInjector[UserToken](config=state_config)
+token_injector = JWTRawTokenInjector(config=state_config)
 
 
 @app.get("/advanced-endpoint")
 def advanced_endpoint(
-    payload: FakeToken = Depends(payload_injector),
-    raw_token: str = Depends(token_injector),
+    payload: Annotated[UserToken, Depends(payload_injector)],
+    raw_token: Annotated[str, Depends(token_injector)],
 ):
-    return {
-        "user": payload.user,
-        "token": raw_token,
-    }
-```
-
-### Additional Configuration
-
-The dependency also supports:
-
-- Custom authorization header name (`auth_header`)
-- Custom authorization scheme (`auth_scheme`)
-
-```python
-jwks_auth = JWKSAuth(
-    jwks_validator=jwks_verifier,
-    auth_header="X-Custom-Auth",
-    auth_scheme="Token",
-)
-app = FastAPI(dependencies=[Security(jwks_auth)])
+    return {"user": payload.user, "token": raw_token}
 ```
 
 ## Contributing
