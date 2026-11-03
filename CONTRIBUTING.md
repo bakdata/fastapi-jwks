@@ -19,9 +19,9 @@ Thank you for considering contributing to fastapi-jwks! We appreciate your help 
    cd fastapi-jwks
    ```
 
-2. Install dependencies using Poetry:
+2. Install dependencies using [uv](https://docs.astral.sh/uv/):
    ```sh
-   poetry install
+   uv sync
    ```
 
 3. Install pre-commit hooks:
