@@ -41,7 +41,8 @@ payload_injector = JWTTokenInjector[FakeToken]()
 def my_endpoint(fake_token: FakeToken = Depends(payload_injector)):
     return fake_token
 
-jwks_verifier = JWKSValidator[FakeToken](
+jwks_verifier = JWKSValidator(
+    payload_model=FakeToken,
     decode_config=JWTDecodeConfig(),
     jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
 )

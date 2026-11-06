@@ -84,7 +84,8 @@ def test_simple_validate(
         "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
         lambda _: jwks_token.jwks,
     )
-    validator = JWKSValidator[FakeToken](
+    validator = JWKSValidator(
+        payload_model=FakeToken,
         decode_config=JWTDecodeConfig(),
         jwks_config=JWKSConfig(url="https://my-fake-jwks-endpoint/my-endpoint"),
     )
@@ -105,7 +106,8 @@ def test_extra_config(
     signed_token = TEST_JWKS["HS256"].signed_token
     token = FakeToken(user="my-fake-user")
     jwt_decode.return_value = token
-    validator = JWKSValidator[FakeToken](
+    validator = JWKSValidator(
+        payload_model=FakeToken,
         decode_config=JWTDecodeConfig(
             audience=["my-audience"],
             issuer="my-issuer",
@@ -135,23 +137,6 @@ def test_extra_config(
     )
 
 
-@patch(
-    "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
-    return_value=TEST_JWKS["HS256"].jwks,
-)
-def test_generic_mandatory(data_mock):
-    signed_token = TEST_JWKS["HS256"].signed_token
-    validator = JWKSValidator(
-        decode_config=JWTDecodeConfig(),
-        jwks_config=JWKSConfig(url="https://my-fake-jwks-endpoint/my-endpoint"),
-    )
-
-    with pytest.raises(
-        ValueError, match="Validator needs a model as generic value to decode payload"
-    ):
-        validator.validate_token(signed_token)
-
-
 def test_custom_ca_cert():
     with tempfile.NamedTemporaryFile(mode="w", suffix=".pem") as ca_cert_file:
         ca_cert_file.write(
@@ -165,7 +150,8 @@ def test_custom_ca_cert():
             mock_response.raise_for_status.return_value = None
             mock_client.return_value.get.return_value = mock_response
 
-            jwks_verifier = JWKSValidator[FakeToken](
+            jwks_verifier = JWKSValidator(
+                payload_model=FakeToken,
                 decode_config=JWTDecodeConfig(),
                 jwks_config=JWKSConfig(
                     url="https://my-fake-jwks-endpoint/my-endpoint",
