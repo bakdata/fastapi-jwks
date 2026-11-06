@@ -10,10 +10,7 @@ on:
 jobs:
   test:
     name: test
-    runs-on: ubuntu-22.04
-    env:
-      working-directory: ./
-      poetry-version: "1.8.2"
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -21,38 +18,27 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: ${{ env.working-directory }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Poetry
-        uses: bakdata/ci-templates/actions/python-setup-poetry@1.47.0
+      - name: Install uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
+          version-file: .tool-versions
           python-version: ${{ matrix.python-version }}
-          poetry-version: ${{ env.poetry-version }}
-          working-directory: ${{ env.working-directory }}
 
-      - name: Install dependencies
-        run: poetry install --no-interaction
-
-      - name: Check Poetry config and lockfile
-        run: poetry run pre-commit run poetry-check --all-files
+      - name: Check uv.lock
+        run: uv lock --check
 
       - name: Lint (ruff)
-        run: |
-          if [[ "$RUNNER_OS" == "Linux" && "${{ matrix.python-version }}" == "3.10" ]]
-          then
-            poetry run ruff check . --config pyproject.toml --output-format github --no-fix
-          else
-            poetry run pre-commit run ruff-lint --all-files --show-diff-on-failure
-          fi;
+        run: uv run --frozen ruff check . --config pyproject.toml --no-fix --output-format github
 
       - name: Formatting (ruff)
-        run: poetry run pre-commit run ruff-format --all-files --show-diff-on-failure
+        run: uv run --frozen ruff format --check
 
       - name: Typing (pyright)
-        run: poetry run pre-commit run pyright --all-files
+        run: uv run --frozen pyright
 
       - name: Test
-        run: poetry run pytest tests
+        run: uv run --frozen pytest tests

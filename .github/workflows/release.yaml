@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release-type:
-        description: "Scope of the release; see https://python-poetry.org/docs/cli/#version"
+        description: "SemVer scope of the release"
         type: choice
         required: true
         default: patch
@@ -15,12 +15,10 @@ on:
 
 jobs:
   release:
-    uses: bakdata/ci-templates/.github/workflows/python-poetry-release.yaml@1.47.0
+    uses: bakdata/ci-templates/.github/workflows/python-uv-release.yaml@2.3.0
     name: Release
     with:
       release-type: ${{ inputs.release-type }}
-      poetry-version: "1.8.2"
-      python-version: "3.12"
       changelog: true
     secrets:
       github-username: "${{ secrets.GH_USERNAME }}"

@@ -1,0 +1,12 @@
+[tool.bumpversion]
+current_version = "2.0.2"
+
+pre_commit_hooks = [
+  "uv lock --no-refresh --upgrade-package=fastapi-jwks",
+]
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+regex = true
+search = '''(?P<prefix>^version\s*=\s*"){current_version}(?P<suffix>")'''
+replace = '''\g<prefix>{new_version}\g<suffix>'''
