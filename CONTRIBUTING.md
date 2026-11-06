@@ -45,7 +45,7 @@ pytest --cov=fastapi_jwks
 
 We use the following tools to maintain code quality:
 - `ruff` for both linting and formatting
-- `pyright` for type checking
+- `ty` for type checking
 - `pre-commit` hooks to automate checks
 
 Please make sure your code passes all checks before submitting a PR:
