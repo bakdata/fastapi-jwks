@@ -40,7 +40,9 @@ class JWTHeader(BaseModel):
     RFC: https://datatracker.ietf.org/doc/html/rfc7519
     """
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="allow", populate_by_name=True
+    )
 
     alg: Annotated[str, Field(description="Algorithm used for signing")]
     typ: Annotated[
@@ -60,7 +62,7 @@ class JWTHeader(BaseModel):
         str | None,
         Field(
             description="X.509 Certificate SHA-256 Thumbprint",
-            validation_alias="x5t#S256",
+            alias="x5t#S256",
         ),
     ] = None
 
@@ -71,7 +73,9 @@ class JWK(BaseModel):
     RFC: https://datatracker.ietf.org/doc/html/rfc7517#section-4
     """
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow", frozen=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="allow", frozen=True, populate_by_name=True
+    )
 
     kty: Annotated[str, Field(description="Key Type")]
     use: Annotated[str | None, Field(description="Public key use")] = None
@@ -91,7 +95,7 @@ class JWK(BaseModel):
         str | None,
         Field(
             description="X.509 Certificate SHA-256 Thumbprint",
-            validation_alias="x5t#S256",
+            alias="x5t#S256",
         ),
     ] = None
     n: Annotated[str | None, Field(description="Modulus for RSA keys")] = None
