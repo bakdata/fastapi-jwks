@@ -39,9 +39,9 @@ repos:
         language: system
         types_or: [python]
         require_serial: true # run once for all files
-      - id: pyright
-        name: pyright
-        entry: pyright
+      - id: ty
+        name: ty
+        entry: ty check
         language: system
         types: [python]
         require_serial: true # run once for all files

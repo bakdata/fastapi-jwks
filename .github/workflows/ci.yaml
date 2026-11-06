@@ -37,8 +37,8 @@ jobs:
       - name: Formatting (ruff)
         run: uv run --frozen ruff format --check
 
-      - name: Typing (pyright)
-        run: uv run --frozen pyright
+      - name: Typing (ty)
+        run: uv run --frozen ty check
 
       - name: Test
         run: uv run --frozen pytest tests

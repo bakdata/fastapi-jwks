@@ -81,7 +81,7 @@ class JWKSValidator[DataT: BaseModel]:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
                 )
-            return self.__orig_class__.__args__[0].model_validate(  # pyright: ignore[reportAttributeAccessIssue]
+            return self.__orig_class__.__args__[0].model_validate(  # ty: ignore[unresolved-attribute]
                 # This line gets the generic value in runtime to transform it to the correct pydantic model
                 jwt.decode(
                     token,
