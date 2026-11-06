@@ -1,8 +1,9 @@
 from typing import final, override
 
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, status
 from fastapi.security.http import HTTPBase
 from pydantic import BaseModel
+from starlette.requests import HTTPConnection
 
 from fastapi_jwks.models.types import JWKSAuthConfig, JWKSAuthCredentials
 from fastapi_jwks.validators import JWKSValidator
@@ -34,7 +35,7 @@ class JWKSAuth[DataT: BaseModel](HTTPBase):
         )
 
     @override
-    async def __call__(self, request: Request) -> JWKSAuthCredentials[DataT]:
+    async def __call__(self, request: HTTPConnection) -> JWKSAuthCredentials[DataT]:
         authorization = request.headers.get(self.auth_header)
         if not authorization:
             raise _unauthorized_error()
