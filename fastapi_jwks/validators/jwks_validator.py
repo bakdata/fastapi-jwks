@@ -1,6 +1,6 @@
 import logging
 from functools import cached_property
-from typing import Any, final
+from typing import Any, final, get_args
 
 import httpx
 import jwt
@@ -47,14 +47,18 @@ class JWKSValidator[DataT: BaseModel]:
             ) from e
 
     @cached_property
-    def __is_generic_passed(self) -> bool:
-        return getattr(self, "__orig_class__", None) is not None
-
-    def validate_token(self, token: str) -> DataT:
-        if not self.__is_generic_passed:
+    def _payload_model(self) -> type[DataT]:
+        # `__orig_class__` is set by the runtime on instances created via
+        # `JWKSValidator[Model](...)`; it is not visible to static type checkers.
+        args = get_args(getattr(self, "__orig_class__", None))
+        if not args:
             raise ValueError(
                 "Validator needs a model as generic value to decode payload"
             )
+        return args[0]
+
+    def validate_token(self, token: str) -> DataT:
+        payload_model = self._payload_model
 
         public_key: bytes | None = None
         try:
@@ -81,8 +85,7 @@ class JWKSValidator[DataT: BaseModel]:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
                 )
-            return self.__orig_class__.__args__[0].model_validate(  # ty: ignore[unresolved-attribute]
-                # This line gets the generic value in runtime to transform it to the correct pydantic model
+            return payload_model.model_validate(
                 jwt.decode(
                     token,
                     key=public_key,
