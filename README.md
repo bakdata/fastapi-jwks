@@ -28,18 +28,22 @@ from fastapi_jwks.dependencies.jwk_auth import JWKSAuth
 from fastapi_jwks.models.types import JWKSConfig, JWTDecodeConfig, JWKSAuthCredentials
 from fastapi_jwks.validators import JWKSValidator
 
+
 # The data we want to extract from the token
 class FakeToken(BaseModel):
     user: str
+
 
 app = FastAPI()
 
 # Basic usage with default configuration
 payload_injector = JWTTokenInjector[FakeToken]()
 
+
 @app.get("/my-endpoint", response_model=FakeToken)
 def my_endpoint(fake_token: FakeToken = Depends(payload_injector)):
     return fake_token
+
 
 jwks_verifier = JWKSValidator[FakeToken](
     decode_config=JWTDecodeConfig(),
@@ -53,10 +57,12 @@ app = FastAPI(dependencies=[Security(jwks_auth)])
 # specific API router
 app.include_router(APIRouter(dependencies=[Security(jwks_auth)]))
 
+
 # specific route
 @app.get("/test")
-def get_test_route(credentials: Annotated[JWKSAuthCredentials[FakeToken], Security(jwks_auth)]):
-    ...
+def get_test_route(
+    credentials: Annotated[JWKSAuthCredentials[FakeToken], Security(jwks_auth)],
+): ...
 ```
 
 ## Advanced Usage
@@ -72,7 +78,7 @@ from fastapi_jwks.injector import JWTTokenInjector, JWTRawTokenInjector
 # Configure depdency with custom field names
 auth_config = JWKSAuthConfig(
     payload_field="custom_payload",
-    token_field="custom_token"
+    token_field="custom_token",
 )
 jwks_auth = JWKSAuth(jwks_validator=jwks_verifier, config=auth_config)
 app = FastAPI(dependencies=[Security(jwks_auth)])
@@ -85,14 +91,15 @@ token_injector = JWTRawTokenInjector[str](
     config=JWTTokenInjectorConfig(token_field="custom_token")
 )
 
+
 @app.get("/advanced-endpoint")
 def advanced_endpoint(
     payload: FakeToken = Depends(payload_injector),
-    raw_token: str = Depends(token_injector)
+    raw_token: str = Depends(token_injector),
 ):
     return {
         "user": payload.user,
-        "token": raw_token
+        "token": raw_token,
     }
 ```
 
@@ -105,9 +112,9 @@ The dependency also supports:
 
 ```python
 jwks_auth = JWKSAuth(
-    jwks_validator=jwks_verifier, 
-    auth_header="X-Custom-Auth", 
-    auth_scheme="Token"
+    jwks_validator=jwks_verifier,
+    auth_header="X-Custom-Auth",
+    auth_scheme="Token",
 )
 app = FastAPI(dependencies=[Security(jwks_auth)])
 ```
