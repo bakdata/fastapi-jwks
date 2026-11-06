@@ -23,6 +23,19 @@ class JWKSAuthConfig(BaseModel):
 class JWKSConfig(BaseModel):
     url: str
     ca_cert_path: str | None = None
+    timeout: Annotated[
+        float, Field(gt=0, description="HTTP timeout in seconds for fetching the JWKS")
+    ] = 5.0
+    cache_ttl: Annotated[
+        float, Field(gt=0, description="Seconds a fetched JWKS is considered fresh")
+    ] = 600
+    refresh_cooldown: Annotated[
+        float,
+        Field(
+            ge=0,
+            description="Minimum seconds between a forced or retried fetch and the previous fetch attempt",
+        ),
+    ] = 30
 
 
 class JWTTokenInjectorConfig(BaseModel):
