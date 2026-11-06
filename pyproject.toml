@@ -22,7 +22,7 @@ dev = [
     "pre-commit>=4.2.0,<5",
     "ruff>=0.13.0,<0.14",
     "pyright>=1.1.386,<2",
-    "pytest>=8.3.3,<9",
+    "pytest>=8.3.3,<10",
     "pytest-asyncio>=1.1.0,<2",
     "pytest-mock>=3.14.0,<4",
     "pytest-clarity>=1.0.1,<2",
@@ -64,6 +64,5 @@ ignore = [
   "RUF012", # type class attrs with `ClassVar` -- Too strict/trigger-happy
 ]
 
-[tool.pytest.ini_options]
-testpaths = "tests"
-addopts = "--cov={fastapi_jwks} --cov-report term-missing"
+[tool.pytest]
+addopts = ["--cov={fastapi_jwks}", "--cov-report", "term-missing"]
