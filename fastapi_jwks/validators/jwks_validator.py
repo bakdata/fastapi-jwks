@@ -56,8 +56,6 @@ class JWKSValidator[DataT: BaseModel]:
         return args[0]
 
     def validate_token(self, token: str) -> DataT:
-        payload_model = self._payload_model
-
         public_key: bytes | None = None
         try:
             header = JWTHeader.model_validate(jwt.get_unverified_header(token))
@@ -83,7 +81,7 @@ class JWKSValidator[DataT: BaseModel]:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
                 )
-            return payload_model.model_validate(
+            return self._payload_model.model_validate(
                 jwt.decode(
                     token,
                     key=public_key,
