@@ -11,6 +11,10 @@ local linters = new Mapping<String, Step> {
   ["ruff-format"] = (Builtins.ruff_format) {
     depends = "ruff-check"
   }
+  ["jactionlint"] {
+    glob = List(".github/**")
+    check = "jactionlint --pyflakes="
+  }
   ["ty"] = (Builtins.ty) {
     check = "ty check"
   }
