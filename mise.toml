@@ -1,3 +1,9 @@
+[tools]
+hk = "2.8.0"
+
+[hooks]
+postinstall = "hk install --mise"
+
 [settings]
 experimental = true
 python.uv_venv_auto = "source"
