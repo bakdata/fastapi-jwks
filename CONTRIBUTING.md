@@ -19,14 +19,9 @@ Thank you for considering contributing to fastapi-jwks! We appreciate your help 
    cd fastapi-jwks
    ```
 
-2. Install dependencies using [uv](https://docs.astral.sh/uv/):
+2. Install [mise](https://mise.jdx.dev/) and set up the tools and Git hooks (installs [hk](https://hk.jdx.dev) and syncs dependencies with [uv](https://docs.astral.sh/uv/)):
    ```sh
-   uv sync
-   ```
-
-3. Install pre-commit hooks:
-   ```sh
-   pre-commit install
+   mise install
    ```
 
 ## Running tests
@@ -46,11 +41,11 @@ pytest --cov=fastapi_jwks
 We use the following tools to maintain code quality:
 - `ruff` for both linting and formatting
 - `ty` for type checking
-- `pre-commit` hooks to automate checks
+- [`hk`](https://hk.jdx.dev) Git hooks to automate checks
 
 Please make sure your code passes all checks before submitting a PR:
 ```sh
-pre-commit run --all-files
+hk check --all
 ```
 
 ## Pull Request Process
