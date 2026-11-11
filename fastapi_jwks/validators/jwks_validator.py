@@ -29,7 +29,7 @@ class JWKSValidator[DataT: BaseModel]:
         return httpx.Client(**client_kwargs)
 
     @cached(cache=TTLCache(ttl=600, maxsize=1))
-    def jwks_data(self) -> JWKS:
+    def jwks_data(self, /) -> JWKS:
         try:
             logger.debug("Fetching JWKS from %s", self.jwks_config.url)
             jwks_response = self.client.get(self.jwks_config.url)
