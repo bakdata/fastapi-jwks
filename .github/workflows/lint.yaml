@@ -7,13 +7,23 @@ on:
     paths:
       - .github/**
       - actions/**
+      - mise.toml
 
 jobs:
-  actionlint:
-    name: actionlint
-    runs-on: ubuntu-22.04
+  jactionlint:
+    name: jactionlint
+    runs-on: ubuntu-24.04
     steps:
-      - name: Lint actions and workflows
-        uses: bakdata/ci-templates/actions/action-lint@1.47.0
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install jactionlint
+        uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # v5.2.3
+        env:
+          MISE_NO_HOOKS: "1"
         with:
-          action-lint-version: "v1.7.6"
+          version: "2026.10.5"
+          install_args: "jactionlint shellcheck"
+
+      - name: jactionlint
+        run: jactionlint --pyflakes= --format=github
