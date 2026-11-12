@@ -1,20 +1,33 @@
+from typing import Any
+
 from pydantic import BaseModel
 from starlette.requests import Request
 
-from fastapi_jwks.models.types import JWTTokenInjectorConfig
+from fastapi_jwks.models.types import JWKSAuthConfig
+
+
+def _get_state(request: Request, field: str) -> Any:
+    try:
+        return getattr(request.state, field)
+    except AttributeError:
+        raise RuntimeError(
+            f"Request state has no '{field}' field. Add JWKSAuth as a dependency of "
+            "this route, e.g. via Security(jwks_auth), and make sure its state "
+            "field names match the injector config."
+        ) from None
 
 
 class JWTTokenInjector[DataT: BaseModel]:
-    def __init__(self, config: JWTTokenInjectorConfig | None = None):
-        self.config: JWTTokenInjectorConfig = config or JWTTokenInjectorConfig()
+    def __init__(self, config: JWKSAuthConfig | None = None):
+        self.config: JWKSAuthConfig = config or JWKSAuthConfig()
 
     async def __call__(self, request: Request) -> DataT:
-        return getattr(request.state, self.config.payload_field)
+        return _get_state(request, self.config.payload_field)
 
 
 class JWTRawTokenInjector:
-    def __init__(self, config: JWTTokenInjectorConfig | None = None):
-        self.config: JWTTokenInjectorConfig = config or JWTTokenInjectorConfig()
+    def __init__(self, config: JWKSAuthConfig | None = None):
+        self.config: JWKSAuthConfig = config or JWKSAuthConfig()
 
     async def __call__(self, request: Request) -> str:
-        return getattr(request.state, self.config.token_field)
+        return _get_state(request, self.config.token_field)
