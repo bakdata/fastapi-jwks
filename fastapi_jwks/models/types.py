@@ -8,9 +8,15 @@ from pydantic import AnyUrl, BaseModel, ConfigDict, Field
 class JWTDecodeConfig(BaseModel):
     """Options passed to pyjwt's jwt.decode()"""
 
+    algorithms: Annotated[
+        list[str] | None,
+        Field(
+            description="Allowed signing algorithms. Defaults to the algorithm bound to the matching key. Symmetric (HMAC) keys are always rejected"
+        ),
+    ] = None
     audience: list[str] | None = None
     issuer: str | None = None
-    leeway: float | timedelta = 0
+    leeway: float | timedelta = 0.0
     options: dict[str, Any] | None = None
     verify: bool | None = None
 
@@ -53,7 +59,9 @@ class JWTHeader(BaseModel):
     RFC: https://datatracker.ietf.org/doc/html/rfc7519
     """
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="allow", populate_by_name=True
+    )
 
     alg: Annotated[str, Field(description="Algorithm used for signing")]
     typ: Annotated[
@@ -73,7 +81,7 @@ class JWTHeader(BaseModel):
         str | None,
         Field(
             description="X.509 Certificate SHA-256 Thumbprint",
-            validation_alias="x5t#S256",
+            alias="x5t#S256",
         ),
     ] = None
 
@@ -84,7 +92,9 @@ class JWK(BaseModel):
     RFC: https://datatracker.ietf.org/doc/html/rfc7517#section-4
     """
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow", frozen=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="allow", frozen=True, populate_by_name=True
+    )
 
     kty: Annotated[str, Field(description="Key Type")]
     use: Annotated[str | None, Field(description="Public key use")] = None
@@ -104,7 +114,7 @@ class JWK(BaseModel):
         str | None,
         Field(
             description="X.509 Certificate SHA-256 Thumbprint",
-            validation_alias="x5t#S256",
+            alias="x5t#S256",
         ),
     ] = None
     n: Annotated[str | None, Field(description="Modulus for RSA keys")] = None
@@ -120,7 +130,3 @@ class JWK(BaseModel):
 
 class JWKS(BaseModel):
     keys: Annotated[list[JWK], Field(min_length=1)]
-
-    @property
-    def algorithms(self) -> list[str]:
-        return [key.alg for key in self.keys if key.alg is not None]

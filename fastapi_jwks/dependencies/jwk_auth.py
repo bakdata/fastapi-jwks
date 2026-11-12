@@ -48,7 +48,7 @@ class JWKSAuth[DataT: BaseModel](HTTPBase):
             raise _unauthorized_error() from e
 
         try:
-            payload = self.jwks_validator.validate_token(token)
+            payload = await self.jwks_validator.validate_token(token)
             setattr(request.state, self.config.payload_field, payload)
             setattr(request.state, self.config.token_field, token)
         except Exception as e:
