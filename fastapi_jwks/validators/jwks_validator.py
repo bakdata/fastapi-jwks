@@ -1,8 +1,9 @@
 import logging
+import ssl
 from functools import cached_property
 from typing import Any, final, get_args
 
-import httpx
+import httpx2
 import jwt
 import pydantic
 from cachetools import TTLCache, cached
@@ -22,11 +23,13 @@ class JWKSValidator[DataT: BaseModel]:
         self.jwks_config = jwks_config
         self.client = self._create_client()
 
-    def _create_client(self) -> httpx.Client:
+    def _create_client(self) -> httpx2.Client:
         client_kwargs: dict[str, Any] = {}
         if self.jwks_config.ca_cert_path:
-            client_kwargs["verify"] = self.jwks_config.ca_cert_path
-        return httpx.Client(**client_kwargs)
+            client_kwargs["verify"] = ssl.create_default_context(
+                cafile=self.jwks_config.ca_cert_path
+            )
+        return httpx2.Client(**client_kwargs)
 
     @cached(cache=TTLCache(ttl=600, maxsize=1))
     def jwks_data(self, /) -> JWKS:
@@ -34,7 +37,7 @@ class JWKSValidator[DataT: BaseModel]:
             logger.debug("Fetching JWKS from %s", self.jwks_config.url)
             jwks_response = self.client.get(self.jwks_config.url)
             jwks_response.raise_for_status()
-        except httpx.RequestError as e:
+        except httpx2.RequestError as e:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Invalid JWKS URI",

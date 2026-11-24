@@ -1,13 +1,16 @@
 import base64
-import tempfile
+import ssl
 from collections.abc import Generator
+from pathlib import Path
 from typing import Annotated
 from unittest.mock import MagicMock, patch
 
+import httpx2
 import jwt
 import pytest
 from fastapi import FastAPI, HTTPException, Security, status
 from pydantic import BaseModel
+from pytest_mock import MockerFixture
 from starlette.requests import Request
 from starlette.testclient import TestClient
 
@@ -230,61 +233,60 @@ async def test_unauthorized_errors_do_not_reuse_tracebacks():
     assert len(set(traceback_lengths)) == 1
 
 
-def test_custom_ca_cert(jwks_fake_data: JWKS):
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".pem") as ca_cert_file:
-        ca_cert_file.write(
-            "-----BEGIN CERTIFICATE-----\nMIID...\n-----END CERTIFICATE-----\n"
-        )
-        ca_cert_file.flush()
+def test_custom_ca_cert(
+    jwks_fake_data: JWKS, ca_cert_path: Path, mocker: MockerFixture
+):
+    create_context = mocker.spy(ssl, "create_default_context")
+    jwks_verifier = JWKSValidator[FakeToken](
+        decode_config=JWTDecodeConfig(),
+        jwks_config=JWKSConfig(
+            url="http://my-fake-jwks-url/my-fake-endpoint",
+            ca_cert_path=str(ca_cert_path),
+        ),
+    )
+    create_context.assert_called_once_with(cafile=str(ca_cert_path))
 
-        with patch("httpx.Client") as mock_client:
-            mock_response = MagicMock()
-            mock_response.json.return_value = jwks_fake_data
-            mock_response.raise_for_status.return_value = None
-            mock_client.return_value.get.return_value = mock_response
+    requests: list[httpx2.Request] = []
 
-            jwks_verifier = JWKSValidator[FakeToken](
-                decode_config=JWTDecodeConfig(),
-                jwks_config=JWKSConfig(
-                    url="http://my-fake-jwks-url/my-fake-endpoint",
-                    ca_cert_path=ca_cert_file.name,
-                ),
-            )
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requests.append(request)
+        return httpx2.Response(200, json=jwks_fake_data.model_dump(exclude_none=True))
 
-            jwks_auth = JWKSAuth(jwks_validator=jwks_verifier)
-            test_app = FastAPI(dependencies=[Security(jwks_auth)])
+    jwks_verifier.client = httpx2.Client(transport=httpx2.MockTransport(handler))
 
-            @test_app.get("/test-endpoint", response_model=FakeToken)
-            def get_test_route(request: Request):
-                return request.state.payload
+    jwks_auth = JWKSAuth(jwks_validator=jwks_verifier)
+    test_app = FastAPI(dependencies=[Security(jwks_auth)])
 
-            client = TestClient(test_app)
+    @test_app.get("/test-endpoint", response_model=FakeToken)
+    def get_test_route(request: Request):
+        return request.state.payload
 
-            jwk = jwks_fake_data.keys[0]
-            key = jwk.k
-            assert key
-            algo = jwk.alg
-            kid = jwk.kid
+    client = TestClient(test_app)
 
-            claim = {"user": "my-custom-ca-user"}
-            signed_token = jwt.encode(
-                claim,
-                base64.urlsafe_b64decode(key),
-                headers={"kid": kid},
-                algorithm=algo,
-            )
+    jwk = jwks_fake_data.keys[0]
+    key = jwk.k
+    assert key
+    algo = jwk.alg
+    kid = jwk.kid
 
-            response = client.get(
-                "/test-endpoint", headers={"Authorization": f"Bearer {signed_token}"}
-            )
-            data = response.json()
+    claim = {"user": "my-custom-ca-user"}
+    signed_token = jwt.encode(
+        claim,
+        base64.urlsafe_b64decode(key),
+        headers={"kid": kid},
+        algorithm=algo,
+    )
 
-            assert data["user"] == claim["user"]
-            assert response.status_code == status.HTTP_200_OK
-            mock_client.assert_called_once_with(verify=ca_cert_file.name)
-            mock_client.return_value.get.assert_called_once_with(
-                "http://my-fake-jwks-url/my-fake-endpoint"
-            )
+    response = client.get(
+        "/test-endpoint", headers={"Authorization": f"Bearer {signed_token}"}
+    )
+    data = response.json()
+
+    assert data["user"] == claim["user"]
+    assert response.status_code == status.HTTP_200_OK
+    assert [str(r.url) for r in requests] == [
+        "http://my-fake-jwks-url/my-fake-endpoint"
+    ]
 
 
 def test_custom_state_fields(jwks_fake_data: JWKS):

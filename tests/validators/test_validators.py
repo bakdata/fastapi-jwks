@@ -1,15 +1,17 @@
 import base64
 import dataclasses
 import datetime
-import tempfile
+import ssl
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import httpx2
 import jwt
 import pytest
 from jwt.algorithms import RSAAlgorithm
 from pydantic import BaseModel
+from pytest_mock import MockerFixture
 
 from fastapi_jwks.models.types import JWKS, JWKSConfig, JWTDecodeConfig
 from fastapi_jwks.validators import JWKSValidator
@@ -152,31 +154,41 @@ def test_generic_mandatory(data_mock):
         validator.validate_token(signed_token)
 
 
-def test_custom_ca_cert():
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".pem") as ca_cert_file:
-        ca_cert_file.write(
-            "-----BEGIN CERTIFICATE-----\nMIID...\n-----END CERTIFICATE-----\n"
+def test_custom_ca_cert(ca_cert_path: Path, mocker: MockerFixture):
+    create_context = mocker.spy(ssl, "create_default_context")
+    jwks_verifier = JWKSValidator[FakeToken](
+        decode_config=JWTDecodeConfig(),
+        jwks_config=JWKSConfig(
+            url="https://my-fake-jwks-endpoint/my-endpoint",
+            ca_cert_path=str(ca_cert_path),
+        ),
+    )
+    create_context.assert_called_once_with(cafile=str(ca_cert_path))
+
+    requests: list[httpx2.Request] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        requests.append(request)
+        return httpx2.Response(
+            200, json=TEST_JWKS["HS256"].jwks.model_dump(exclude_none=True)
         )
-        ca_cert_file.flush()
 
-        with patch("httpx.Client") as mock_client:
-            mock_response = MagicMock()
-            mock_response.json.return_value = TEST_JWKS["HS256"].jwks
-            mock_response.raise_for_status.return_value = None
-            mock_client.return_value.get.return_value = mock_response
+    jwks_verifier.client = httpx2.Client(transport=httpx2.MockTransport(handler))
 
-            jwks_verifier = JWKSValidator[FakeToken](
-                decode_config=JWTDecodeConfig(),
-                jwks_config=JWKSConfig(
-                    url="https://my-fake-jwks-endpoint/my-endpoint",
-                    ca_cert_path=ca_cert_file.name,
-                ),
-            )
+    assert jwks_verifier.jwks_data() == TEST_JWKS["HS256"].jwks
+    assert [str(r.url) for r in requests] == [
+        "https://my-fake-jwks-endpoint/my-endpoint"
+    ]
 
-            jwks_data = jwks_verifier.jwks_data()
 
-            assert jwks_data == TEST_JWKS["HS256"].jwks
-            mock_client.assert_called_with(verify=ca_cert_file.name)
-            mock_client.return_value.get.assert_called_with(
-                "https://my-fake-jwks-endpoint/my-endpoint"
-            )
+def test_invalid_ca_cert(tmp_path: Path):
+    ca_cert_path = tmp_path / "ca.pem"
+    ca_cert_path.write_text("not a certificate")
+    with pytest.raises(ssl.SSLError):
+        JWKSValidator[FakeToken](
+            decode_config=JWTDecodeConfig(),
+            jwks_config=JWKSConfig(
+                url="https://my-fake-jwks-endpoint/my-endpoint",
+                ca_cert_path=str(ca_cert_path),
+            ),
+        )
