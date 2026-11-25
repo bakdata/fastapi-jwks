@@ -1,7 +1,6 @@
 import logging
 import ssl
-from functools import cached_property
-from typing import Any, final, get_args
+from typing import Any, final
 
 import httpx2
 import jwt
@@ -18,7 +17,13 @@ logger = logging.getLogger("fastapi-jwks")
 
 @final
 class JWKSValidator[DataT: BaseModel]:
-    def __init__(self, decode_config: JWTDecodeConfig, jwks_config: JWKSConfig):
+    def __init__(
+        self,
+        decode_config: JWTDecodeConfig,
+        jwks_config: JWKSConfig,
+        payload_model: type[DataT],
+    ):
+        self.payload_model = payload_model
         self.decode_config = decode_config
         self.jwks_config = jwks_config
         self.client = self._create_client()
@@ -49,15 +54,6 @@ class JWKSValidator[DataT: BaseModel]:
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Invalid JWKS"
             ) from e
 
-    @cached_property
-    def _payload_model(self) -> type[DataT]:
-        args = get_args(getattr(self, "__orig_class__", None))
-        if not args:
-            raise ValueError(
-                "Validator needs a model as generic value to decode payload"
-            )
-        return args[0]
-
     def validate_token(self, token: str) -> DataT:
         public_key: bytes | None = None
         try:
@@ -84,7 +80,7 @@ class JWKSValidator[DataT: BaseModel]:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
                 )
-            return self._payload_model.model_validate(
+            return self.payload_model.model_validate(
                 jwt.decode(
                     token,
                     key=public_key,

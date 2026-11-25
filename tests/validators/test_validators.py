@@ -86,7 +86,8 @@ def test_simple_validate(
         "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
         lambda _: jwks_token.jwks,
     )
-    validator = JWKSValidator[FakeToken](
+    validator = JWKSValidator(
+        payload_model=FakeToken,
         decode_config=JWTDecodeConfig(),
         jwks_config=JWKSConfig(url="https://my-fake-jwks-endpoint/my-endpoint"),
     )
@@ -107,7 +108,8 @@ def test_extra_config(
     signed_token = TEST_JWKS["HS256"].signed_token
     token = FakeToken(user="my-fake-user")
     jwt_decode.return_value = token
-    validator = JWKSValidator[FakeToken](
+    validator = JWKSValidator(
+        payload_model=FakeToken,
         decode_config=JWTDecodeConfig(
             audience=["my-audience"],
             issuer="my-issuer",
@@ -137,26 +139,10 @@ def test_extra_config(
     )
 
 
-@patch(
-    "fastapi_jwks.validators.jwks_validator.JWKSValidator.jwks_data",
-    return_value=TEST_JWKS["HS256"].jwks,
-)
-def test_generic_mandatory(data_mock):
-    signed_token = TEST_JWKS["HS256"].signed_token
-    validator = JWKSValidator(
-        decode_config=JWTDecodeConfig(),
-        jwks_config=JWKSConfig(url="https://my-fake-jwks-endpoint/my-endpoint"),
-    )
-
-    with pytest.raises(
-        ValueError, match="Validator needs a model as generic value to decode payload"
-    ):
-        validator.validate_token(signed_token)
-
-
 def test_custom_ca_cert(ca_cert_path: Path, mocker: MockerFixture):
     create_context = mocker.spy(ssl, "create_default_context")
-    jwks_verifier = JWKSValidator[FakeToken](
+    jwks_verifier = JWKSValidator(
+        payload_model=FakeToken,
         decode_config=JWTDecodeConfig(),
         jwks_config=JWKSConfig(
             url="https://my-fake-jwks-endpoint/my-endpoint",
@@ -185,7 +171,8 @@ def test_invalid_ca_cert(tmp_path: Path):
     ca_cert_path = tmp_path / "ca.pem"
     ca_cert_path.write_text("not a certificate")
     with pytest.raises(ssl.SSLError):
-        JWKSValidator[FakeToken](
+        JWKSValidator(
+            payload_model=FakeToken,
             decode_config=JWTDecodeConfig(),
             jwks_config=JWKSConfig(
                 url="https://my-fake-jwks-endpoint/my-endpoint",

@@ -50,7 +50,8 @@ def jwks_fake_data() -> JWKS:
 
 @pytest.fixture()
 def jwks_auth(jwks_fake_data: JWKS) -> Generator[JWKSAuth[FakeToken]]:
-    jwks_verifier = JWKSValidator[FakeToken](
+    jwks_verifier = JWKSValidator(
+        payload_model=FakeToken,
         decode_config=JWTDecodeConfig(),
         jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
     )
@@ -130,7 +131,8 @@ def test_dependency_return_type(jwks_auth: JWKSAuth[FakeToken], signed_token: st
 
 
 def test_custom_auth_header_and_scheme(jwks_fake_data: JWKS):
-    jwks_verifier = JWKSValidator[FakeToken](
+    jwks_verifier = JWKSValidator(
+        payload_model=FakeToken,
         decode_config=JWTDecodeConfig(),
         jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
     )
@@ -237,7 +239,8 @@ def test_custom_ca_cert(
     jwks_fake_data: JWKS, ca_cert_path: Path, mocker: MockerFixture
 ):
     create_context = mocker.spy(ssl, "create_default_context")
-    jwks_verifier = JWKSValidator[FakeToken](
+    jwks_verifier = JWKSValidator(
+        payload_model=FakeToken,
         decode_config=JWTDecodeConfig(),
         jwks_config=JWKSConfig(
             url="http://my-fake-jwks-url/my-fake-endpoint",
@@ -290,7 +293,8 @@ def test_custom_ca_cert(
 
 
 def test_custom_state_fields(jwks_fake_data: JWKS):
-    jwks_verifier = JWKSValidator[FakeToken](
+    jwks_verifier = JWKSValidator(
+        payload_model=FakeToken,
         decode_config=JWTDecodeConfig(),
         jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
     )
@@ -347,7 +351,8 @@ def test_custom_state_fields(jwks_fake_data: JWKS):
 
 @pytest.mark.asyncio()
 async def test_token_injector_with_custom_fields(jwks_fake_data: JWKS):
-    jwks_verifier = JWKSValidator[FakeToken](
+    jwks_verifier = JWKSValidator(
+        payload_model=FakeToken,
         decode_config=JWTDecodeConfig(),
         jwks_config=JWKSConfig(url="http://my-fake-jwks-url/my-fake-endpoint"),
     )
